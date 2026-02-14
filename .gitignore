@@ -1,0 +1,8 @@
+﻿venv/
+.venv/
+__pycache__/
+*.pyc
+.env
+test_image.png
+test_result.txt
+credentials.json

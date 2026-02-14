@@ -1,0 +1,39 @@
+[
+  {
+    "items": [
+      {
+        "category_label": "white shirt",
+        "main_color_hex": "#FFFFFF",
+        "type": "top",
+        "occasion": "formal",
+        "id": 12,
+        "image_url": "/uploads/uuid-123.jpg",
+        "processed_image_url": "/processed/proc_uuid-123.png",
+        "created_at": "2024-01-20T10:00:00Z"
+      },
+      {
+        "category_label": "navy trousers",
+        "main_color_hex": "#000080",
+        "type": "bottom",
+        "occasion": "formal",
+        "id": 45,
+        "image_url": "/uploads/uuid-456.jpg",
+        "processed_image_url": "/processed/proc_uuid-456.png",
+        "created_at": "2024-01-15T14:30:00Z"
+      },
+      {
+        "category_label": "black oxfords",
+        "main_color_hex": "#000000",
+        "type": "shoes",
+        "occasion": "formal",
+        "id": 8,
+        "image_url": "/uploads/uuid-789.jpg",
+        "processed_image_url": "/processed/proc_uuid-789.png",
+        "created_at": "2024-01-10T09:15:00Z"
+      }
+    ],
+    "weather_summary": "28.5°C, clear",
+    "occasion_context": "formal",
+    "score": 10
+  }
+]
