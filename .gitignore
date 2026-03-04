@@ -1,8 +1,9 @@
 ﻿venv/
 .venv/
-__pycache__/
-*.pyc
-.env
+__pyc# Datasets
+datasets/raw/
+datasets/processed/
+!datasets/sample_labels.json
 test_image.png
 test_result.txt
 credentials.json

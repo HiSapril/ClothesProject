@@ -1,0 +1,109 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.11.8, pytest-8.0.0, pluggy-1.6.0
+rootdir: D:\hoc tap\ClothesProject
+configfile: pytest.ini
+plugins: anyio-4.12.1, asyncio-0.23.5, mock-3.12.0
+asyncio: mode=Mode.AUTO
+collected 2 items
+
+tests\test_recommendation.py EE                                          [100%]
+
+=================================== ERRORS ====================================
+________________ ERROR at setup of test_deterministic_scoring _________________
+
+mocker = <pytest_mock.plugin.MockerFixture object at 0x0000026BAB777ED0>
+
+    @pytest.fixture(autouse=True)
+    def mock_external_calls(mocker):
+        """Mock Redis, Weather, and Calendar by default to avoid network calls."""
+>       mocker.patch("app.main.FastApiLimiter.init", return_value=None)
+
+tests\conftest.py:69: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\pytest_mock\plugin.py:419: in __call__
+    return self._start_patch(
+C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\pytest_mock\plugin.py:229: in _start_patch
+    mocked: MockType = p.start()
+C:\Program Files\Python311\Lib\unittest\mock.py:1591: in start
+    result = self.__enter__()
+C:\Program Files\Python311\Lib\unittest\mock.py:1443: in __enter__
+    original, local = self.get_original()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <unittest.mock._patch object at 0x0000026BABF8C150>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: None does not have the attribute 'init'
+
+C:\Program Files\Python311\Lib\unittest\mock.py:1416: AttributeError
+________________ ERROR at setup of test_low_confidence_penalty ________________
+
+mocker = <pytest_mock.plugin.MockerFixture object at 0x0000026BAC044510>
+
+    @pytest.fixture(autouse=True)
+    def mock_external_calls(mocker):
+        """Mock Redis, Weather, and Calendar by default to avoid network calls."""
+>       mocker.patch("app.main.FastApiLimiter.init", return_value=None)
+
+tests\conftest.py:69: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\pytest_mock\plugin.py:419: in __call__
+    return self._start_patch(
+C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\pytest_mock\plugin.py:229: in _start_patch
+    mocked: MockType = p.start()
+C:\Program Files\Python311\Lib\unittest\mock.py:1591: in start
+    result = self.__enter__()
+C:\Program Files\Python311\Lib\unittest\mock.py:1443: in __enter__
+    original, local = self.get_original()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <unittest.mock._patch object at 0x0000026BAC044750>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: None does not have the attribute 'init'
+
+C:\Program Files\Python311\Lib\unittest\mock.py:1416: AttributeError
+=========================== short test summary info ===========================
+ERROR tests/test_recommendation.py::test_deterministic_scoring - AttributeErr...
+ERROR tests/test_recommendation.py::test_low_confidence_penalty - AttributeEr...
+============================== 2 errors in 0.15s ==============================

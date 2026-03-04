@@ -1,13 +1,18 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum as SqEnum, JSON
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Enum as SqEnum, JSON, Float
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.db.database import Base
 import enum
+from app.domain.fashion_taxonomy import FashionCategory, ClassificationStatus
 
 class OccasionEnum(str, enum.Enum):
     CASUAL = "casual"
     FORMAL = "formal"
     SPORT = "sport"
+
+class UserRole(str, enum.Enum):
+    USER = "user"
+    ADMIN = "admin"
 
 class ClothingTypeEnum(str, enum.Enum):
     TOP = "top" # Shirt, T-shirt
@@ -27,6 +32,8 @@ class User(Base):
     username = Column(String, unique=True, index=True)
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String, nullable=True) # Nullable for Google-only users
+    role = Column(SqEnum(UserRole), default=UserRole.USER)
+    refresh_token_hash = Column(String, nullable=True) # For revocation
     google_token = Column(String, nullable=True) # Stores OAuth token JSON string
     
     # Profile Stats
@@ -52,10 +59,23 @@ class ClothingItem(Base):
     category_label = Column(String) # e.g. "Mắt kính"
     category_raw = Column(String, nullable=True) # e.g. "sunglass"
     main_color_hex = Column(String) # e.g. "#00FF00"
+    image_hash = Column(String, index=True, nullable=True) # SHA256 for deduplication
     
     # Classification for Logic
-    type = Column(SqEnum(ClothingTypeEnum)) 
+    category = Column(SqEnum(FashionCategory), default=FashionCategory.UNKNOWN)
+    confidence_score = Column(Float, nullable=True)
+    classification_status = Column(SqEnum(ClassificationStatus), default=ClassificationStatus.UNKNOWN)
+    raw_model_output = Column(JSON, nullable=True) # Full output for auditing
+    
+    type = Column(SqEnum(ClothingTypeEnum), nullable=True) # Legacy, keeping for compatibility
     occasion = Column(SqEnum(OccasionEnum), default=OccasionEnum.CASUAL)
+    
+    # Task Tracking
+    status = Column(String, default="pending") # pending, processing, completed, failed
+    task_id = Column(String, nullable=True) # Celery task ID
+    failure_reason = Column(String, nullable=True)
+    failure_code = Column(String, nullable=True)   # Typed failure (e.g. LOW_CONFIDENCE)
+    suggested_action = Column(String, nullable=True) # Actionable help for user
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     owner = relationship("User", back_populates="items")

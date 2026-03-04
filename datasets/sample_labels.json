@@ -1,0 +1,17 @@
+[
+    {
+        "filename": "sample_shirt.jpg",
+        "expected_category": "top",
+        "description": "A standard white t-shirt"
+    },
+    {
+        "filename": "sample_jeans.jpg",
+        "expected_category": "bottom",
+        "description": "Blue denim jeans"
+    },
+    {
+        "filename": "sample_sneakers.jpg",
+        "expected_category": "shoes",
+        "description": "Sporty sneakers"
+    }
+]

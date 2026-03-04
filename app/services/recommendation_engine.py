@@ -1,211 +1,192 @@
-from typing import List, Dict
+from typing import List, Dict, Tuple
 from sqlalchemy.orm import Session
-from app.db.models import ClothingItem, ClothingTypeEnum, OccasionEnum
-import random
+from app.db.models import ClothingItem, OccasionEnum
+from app.domain.fashion_taxonomy import FashionCategory, ClassificationStatus
+import os
+import logging
+
+logger = logging.getLogger("app")
 
 class RecommendationEngine:
-    
-    def recommend(self, db: Session, user_id: int, weather: Dict, occasion: OccasionEnum) -> List[Dict]:
+    # --- Scoring Constants ---
+    MATCH_BASE_SCORE = 20
+    WEATHER_MATCH_BONUS = 15
+    OCCASION_MATCH_BONUS = 15
+    COLOR_HARMONY_BONUS = 10
+    LOW_CONFIDENCE_PENALTY = -30
+    UNKNOWN_CATEGORY_PENALTY = -50
+
+    def recommend(self, db: Session, user_id: int, weather: Dict, occasion: OccasionEnum, 
+                  strategy: str = "CONTEXT_AWARE", decision_layer_enabled: bool = True,
+                  context_override: Dict = None) -> List[Dict]:
         """
-        Main logic flow:
-        1. Fetch User Inventory
-        2. Filter by Weather (Temperature, Rain)
-        3. Filter by Occasion
-        4. Color Matching (Simple Complementary)
-        5. Return Top 3 Combinations
+        Deterministic Recommendation Engine with Research Support.
         """
+        if context_override:
+            if "temp" in context_override: weather["temp"] = context_override["temp"]
+            if "condition" in context_override: weather["condition"] = context_override["condition"]
+
+        from app.core.cache import cache
         
-    def _get_color_analysis(self, items: List[ClothingItem]):
-        # Simple color theory logic
-        colors = [i.main_color_hex for i in items if i.main_color_hex]
-        if not colors: return "Sự phối hợp màu sắc hài hòa."
+        # 0. Cache (Only for CONTEXT_AWARE without overrides)
+        if strategy == "CONTEXT_AWARE" and not context_override:
+            temp_sig = int(round(weather.get("temp", 25)))
+            cond_sig = weather.get("condition", "Clear")
+            weather_sig = f"{temp_sig}_{cond_sig}"
+            cache_key = f"rec:{user_id}:{occasion.value}:{weather_sig}"
+            cached_recs = cache.get(cache_key)
+            if cached_recs:
+                logger.info(f"Recommendation cache HIT for user {user_id}")
+                final_recs = []
+                for entry in cached_recs:
+                    db_items = db.query(ClothingItem).filter(ClothingItem.id.in_(entry["items"])).all()
+                    item_map = {item.id: item for item in db_items}
+                    final_recs.append({
+                        "items": [item_map[iid] for iid in entry["items"] if iid in item_map],
+                        "score": entry["score"],
+                        "reason": entry["reason"],
+                        "decision_status": entry.get("decision_status", "CONFIRMED")
+                    })
+                return final_recs
+
+        logger.info(f"Rec Request: User={user_id}, Strategy={strategy}, DecisionLayer={decision_layer_enabled}")
         
-        # In a real app, this would use a color library. For now, we simulate knowledge.
-        return "Sự phối hợp giữa các tông màu này tạo nên một tổng thể cân đối, không quá chói mắt nhưng vẫn đủ ấn tượng."
-
-    def _generate_deep_reasoning(self, items: List[ClothingItem], weather: Dict, occasion: OccasionEnum, user=None):
-        temp = weather.get("temp", 25)
-        condition = weather.get("condition", "clear").lower()
-        
-        steps = []
-        
-        # --- Bước 1: Phân tích người mặc ---
-        gender_type = "Quý ông" if user and user.gender == "Nam" else "Quý cô" if user and user.gender == "Nữ" else "Người dùng"
-        body_type = "cân đối"
-        if user and user.height and user.weight:
-            bmi = user.weight / ((user.height / 100) ** 2)
-            if bmi < 18.5: body_type = "mảnh khảnh"
-            elif bmi > 25: body_type = "đầy đặn"
-        steps.append(f"- Người mặc: {gender_type} vóc dáng {body_type}, phong cách tối giản thanh lịch.")
-
-        # --- Bước 2: Phân tích hoàn cảnh sử dụng ---
-        occ_str = "trang trọng" if occasion == OccasionEnum.FORMAL else "năng động" if occasion == OccasionEnum.SPORT else "thường ngày"
-        steps.append(f"- Hoàn cảnh: Phù hợp bối cảnh {occ_str} trong tiết trời {temp}°C ({condition}).")
-
-        # --- Bước 3: Phân tích mục tiêu mặc ---
-        goal = "tôn dáng và chuyên nghiệp"
-        if occasion == OccasionEnum.SPORT: goal = "linh hoạt vận động"
-        elif occasion == OccasionEnum.CASUAL: goal = "thoải mái, thanh lịch tự nhiên"
-        steps.append(f"- Mục tiêu: Giúp bạn {goal}, tự tin trong mọi tương tác.")
-
-        # --- Bước 4: Đưa ra nguyên tắc lựa chọn ---
-        principle = "Gam màu trung tính, chất liệu bền vững."
-        if "mưa" in condition or "rain" in condition: principle = "Chất liệu nhanh khô, màu tối phần dưới tránh bẩn."
-        elif temp > 28: principle = "Vải mỏng nhẹ, phom suông thoáng mát."
-        steps.append(f"- Nguyên tắc: {principle} Phối màu tương đồng tạo tổng thể mượt mà.")
-
-        # --- Bước 5: Đề xuất outfit cụ thể ---
-        items_str = ", ".join([f"{i.category_label}" for i in items])
-        steps.append(f"- Đề xuất: Phối hợp giữa {items_str} với sắc độ hài hòa.")
-
-        # --- Bước 6: Lý do + mẹo bổ sung ---
-        tip = "Sơ vin nhẹ và thêm đồng hồ để tạo điểm nhấn."
-        if occasion == OccasionEnum.FORMAL: tip = "Giày và thắt lưng nên đồng nhất màu sắc/chất liệu."
-        steps.append(f"- Mẹo từ chuyên gia: {tip} Giúp tôn ưu điểm tự nhiên của bạn.")
-
-        return "\n".join(steps)
-
-    def recommend(self, db: Session, user_id: int, weather: Dict, occasion: OccasionEnum) -> List[Dict]:
-        """
-        Main logic flow:
-        1. Fetch User Inventory
-        2. Filter by Weather (Temperature, Rain)
-        3. Filter by Occasion (with progressive relaxation)
-        4. Strategy Generation (Tops+Bottoms, Full Body, Fallbacks)
-        5. Variation Scaling (Ensure 3 outfits if possible)
-        """
-        
-        # 1. Fetch Inventory & User Context
-        print(f"DEBUG: Recommend called for user {user_id} with occasion {occasion}")
         from app.db import models
         user = db.query(models.User).filter(models.User.id == user_id).first()
         all_items = db.query(ClothingItem).filter(ClothingItem.user_id == user_id).all()
         
-        if not all_items:
-            return []
+        if not all_items: return []
 
+        # 1. Group items by taxonomy
+        inventory = {cat: [i for i in all_items if i.category == cat] for cat in FashionCategory}
+        
         temp = weather.get("temp", 25)
-        condition = weather.get("condition", "clear")
-        
-        # Filter items by type
-        tops = [i for i in all_items if i.type == ClothingTypeEnum.TOP]
-        bottoms = [i for i in all_items if i.type == ClothingTypeEnum.BOTTOM]
-        shoes = [i for i in all_items if i.type == ClothingTypeEnum.SHOES]
-        outerwear = [i for i in all_items if i.type == ClothingTypeEnum.OUTERWEAR]
-        full_body = [i for i in all_items if i.type == ClothingTypeEnum.FULL]
+        candidates = []
 
-        # --- Dynamic Rules based on User Info (Height/Weight/Gender) ---
-        if user and user.gender == "Nam":
-            bottoms = [b for b in bottoms if "váy" not in (b.category_label or "").lower()]
-            full_body = [] 
-        
-        # --- Filter 1: Weather ---
-        needs_outerwear = temp < 18
-        
-        valid_shoes = shoes
-        if "rain" in condition.lower() or "mưa" in condition.lower():
-            valid_shoes = [s for s in shoes if "white" not in (s.main_color_hex or "").lower()]
-            if not valid_shoes: valid_shoes = shoes
-
-        # --- Filter 2: Occasion (Progressive Relaxation) ---
-        v_tops = self._filter_by_occasion(tops, occasion)
-        v_bottoms = self._filter_by_occasion(bottoms, occasion)
-        v_shoes = self._filter_by_occasion(valid_shoes, occasion)
-        v_outer = self._filter_by_occasion(outerwear, occasion)
-        v_full = self._filter_by_occasion(full_body, occasion)
-
-        outfits = []
-        
-        # Strategy A: Top + Bottom
-        for top in v_tops:
-            for bottom in v_bottoms:
-                current_shoes = v_shoes if v_shoes else valid_shoes
-                for shoe in current_shoes:
-                    outfit_items = [top, bottom, shoe]
-                    score = 10
-                    if needs_outerwear:
-                        outer = random.choice(v_outer) if v_outer else (random.choice(outerwear) if outerwear else None)
-                        if outer: outfit_items.append(outer)
-                    outfits.append({"items": outfit_items, "score": score})
-
-        # Strategy B: Full Body 
-        for fb in v_full:
-            current_shoes = v_shoes if v_shoes else valid_shoes
-            for shoe in current_shoes:
-                 outfit_items = [fb, shoe]
-                 score = 10
-                 if needs_outerwear:
-                     outer = random.choice(v_outer) if v_outer else (random.choice(outerwear) if outerwear else None)
-                     if outer: outfit_items.append(outer)
-                 outfits.append({"items": outfit_items, "score": score})
-
-        # --- Relaxation Round 1: Mix Casual into Formal/Sport if needed ---
-        if len(outfits) < 3:
-            # If for formal/sport we don't have enough, try including regular items
-            if occasion != OccasionEnum.CASUAL:
-                relaxed_tops = [t for t in tops if t not in v_tops]
-                relaxed_bottoms = [b for b in bottoms if b not in v_bottoms]
-                
-                # Combine relaxed items with valid or other items
-                for t in (v_tops + relaxed_tops[:3]):
-                    for b in (v_bottoms + relaxed_bottoms[:3]):
-                        if t in v_tops and b in v_bottoms: continue # Skip already added
-                        
-                        current_shoes = v_shoes if v_shoes else valid_shoes
-                        for shoe in current_shoes[:2]:
-                            items = [t, b, shoe]
-                            if needs_outerwear:
-                                outer = random.choice(outerwear) if outerwear else None
-                                if outer: items.append(outer)
-                            outfits.append({"items": items, "score": 7})
-
-        # --- Fallback: Forced Generation ---
-        if not outfits:
-            # Last resort: just pick everything available regardless of occasion
-            for _ in range(5): # Generate a few random combos
-                f_top = random.choice(tops) if tops else None
-                f_bottom = random.choice(bottoms) if bottoms else None
-                f_shoe = random.choice(shoes) if shoes else None
-                f_full = random.choice(full_body) if full_body else None
-                
-                if f_top and f_bottom and f_shoe:
-                    outfits.append({"items": [f_top, f_bottom, f_shoe], "score": 5})
-                elif f_full and f_shoe:
-                    outfits.append({"items": [f_full, f_shoe], "score": 5})
-
-        # Final check if still empty, push ANY items
-        if not outfits and all_items:
-            outfits.append({"items": all_items[:3], "score": 1})
-
-        # Shuffle and pick top 3
-        random.shuffle(outfits)
-        
-        # Deduplicate by item set to avoid identical recommendations
-        unique_outfits = []
-        seen_sets = set()
-        for o in outfits:
-            item_ids = tuple(sorted([i.id for i in o["items"]]))
-            if item_ids not in seen_sets:
-                unique_outfits.append(o)
-                seen_sets.add(item_ids)
-        
-        final_outfits = unique_outfits[:3]
-
-        # --- 3. Add Advanced AI reasoning ---
-        for outfit in final_outfits:
-            outfit["reason"] = self._generate_deep_reasoning(outfit["items"], weather, occasion, user)
-
-        return final_outfits
-
-    def _filter_by_occasion(self, items: List[ClothingItem], occasion: OccasionEnum):
-        if occasion == OccasionEnum.FORMAL:
-            return [i for i in items if i.occasion == OccasionEnum.FORMAL]
-        elif occasion == OccasionEnum.SPORT:
-            return [i for i in items if i.occasion == OccasionEnum.SPORT or i.occasion == OccasionEnum.CASUAL]
+        # Strategy Switch
+        if strategy == "BASELINE":
+            # Simple category-only logic: Just pick one of each available
+            tops = inventory[FashionCategory.TOP]
+            bottoms = inventory[FashionCategory.BOTTOM]
+            shoes = inventory[FashionCategory.FOOTWEAR]
+            if tops and bottoms and shoes:
+                for t in tops[:2]:
+                    for b in bottoms[:2]:
+                        for s in shoes[:2]:
+                            candidates.append({
+                                "items": [t, b, s],
+                                "score": 20,
+                                "reason": "Baseline Rule: One of each category."
+                            })
         else:
-            return [i for i in items if i.occasion != OccasionEnum.FORMAL]
+            # CONTEXT_AWARE Logic
+            for top in inventory[FashionCategory.TOP]:
+                for bottom in inventory[FashionCategory.BOTTOM]:
+                    for shoe in inventory[FashionCategory.FOOTWEAR]:
+                        items = [top, bottom, shoe]
+                        potential_outerwear = inventory[FashionCategory.OUTERWEAR]
+                        if temp < 18 and potential_outerwear:
+                            for outer in potential_outerwear:
+                                candidates.append(self._evaluate_outfit(items + [outer], weather, occasion, user))
+                        else:
+                            candidates.append(self._evaluate_outfit(items, weather, occasion, user))
 
-    def _is_color_match(self, hex1, hex2):
-        return True
+        # 2. Ranking
+        candidates.sort(key=lambda x: (-x["score"], tuple(sorted([i.id for i in x["items"]]))))
+
+        # 3. Decision Layer Application (if enabled)
+        from app.services.decision_engine import DecisionEngine
+        final_recs = []
+        seen_items = set()
+
+        for c in candidates:
+            item_tuple = tuple(sorted([i.id for i in c["items"]]))
+            if item_tuple in seen_items: continue
+            
+            decision_status = "CONFIRMED"
+            if decision_layer_enabled:
+                validation = DecisionEngine.validate_outfit_safety(c["items"], weather)
+                decision_status = validation["status"]
+                if decision_status == "REJECTED":
+                    c["reason"] = f"REJECTED by Decision Layer: {validation['reason']}"
+                    c["score"] = -999 # Sink rejected outfits
+                
+                # Check for low-confidence items
+                for item in c["items"]:
+                    if item.classification_status == ClassificationStatus.LOW_CONFIDENCE:
+                        decision_status = "LOW_CONFIDENCE"
+                        break
+
+            c["decision_status"] = decision_status
+            final_recs.append(c)
+            seen_items.add(item_tuple)
+            if len(final_recs) >= 5: break
+
+        # 4. Cache (only for valid CONTEXT_AWARE results)
+        if strategy == "CONTEXT_AWARE" and not context_override:
+            serializable_results = [{
+                "items": [i.id for i in r["items"]],
+                "score": r["score"],
+                "reason": r["reason"],
+                "decision_status": r["decision_status"]
+            } for r in final_recs[:3]]
+            cache.set(cache_key, serializable_results, ttl=300)
+
+        return final_recs[:3]
+
+    def _evaluate_outfit(self, items: List[ClothingItem], weather: Dict, occasion: OccasionEnum, user=None) -> Dict:
+        score = self.MATCH_BASE_SCORE
+        explanations = [f"Base score: +{self.MATCH_BASE_SCORE}"]
+        temp = weather.get("temp", 25)
+
+        occ_matches = sum(1 for item in items if item.occasion == occasion)
+        if occ_matches > 0:
+            bonus = self.OCCASION_MATCH_BONUS * (occ_matches / len(items))
+            score += bonus
+            explanations.append(f"Occasion match bonus: +{bonus:.1f}")
+        else:
+            score -= 10
+            explanations.append("Occasion mismatch penalty: -10")
+
+        if temp < 18:
+            has_outerwear = any(i.category == FashionCategory.OUTERWEAR for i in items)
+            if has_outerwear:
+                score += self.WEATHER_MATCH_BONUS
+                explanations.append(f"Cold weather protection: +{self.WEATHER_MATCH_BONUS}")
+            else:
+                score -= 20
+                explanations.append("Lack of outerwear in cold weather: -20")
+        elif temp > 28:
+            has_heavy = any("coat" in (i.category_label or "").lower() or "jacket" in (i.category_label or "").lower() for i in items)
+            if has_heavy:
+                score -= 15
+                explanations.append("Too many layers for hot weather: -15")
+        
+        for item in items:
+            if item.classification_status == ClassificationStatus.LOW_CONFIDENCE:
+                score += self.LOW_CONFIDENCE_PENALTY
+                explanations.append(f"Low confidence penalty ({item.category_label}): {self.LOW_CONFIDENCE_PENALTY}")
+            elif item.classification_status == ClassificationStatus.UNKNOWN:
+                score += self.UNKNOWN_CATEGORY_PENALTY
+                explanations.append(f"Unknown item penalty: {self.UNKNOWN_CATEGORY_PENALTY}")
+        
+        from app.services.decision_engine import DecisionEngine
+        summary = DecisionEngine.get_recommendation_explanation(len(items), weather, occasion.value)
+        
+        DecisionEngine.log_decision_metrics(
+            action_type="recommendation",
+            status="SUCCESS",
+            metadata={
+                "items_count": len(items),
+                "weather": weather,
+                "score": int(score)
+            }
+        )
+
+        return {
+            "items": items,
+            "score": int(score),
+            "reason": summary # Replace raw explanation trail with refined XAI summary
+        }
 
 recommendation_engine = RecommendationEngine()

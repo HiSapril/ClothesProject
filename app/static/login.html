@@ -249,10 +249,12 @@
         </button>
     </div>
 
-    <script>
+    <script type="module">
+        import { api } from './js/api.js';
+
         let currentMode = 'login';
 
-        function switchTab(mode) {
+        window.switchTab = function (mode) {
             currentMode = mode;
             const tabs = document.querySelectorAll('.tab');
             const emailGroup = document.getElementById('email-group');
@@ -260,11 +262,8 @@
             const emailInput = document.getElementById('email');
 
             tabs.forEach(tab => {
-                if (tab.innerText.toLowerCase().includes(mode === 'login' ? 'nhập' : 'ký')) {
-                    tab.classList.add('active');
-                } else {
-                    tab.classList.remove('active');
-                }
+                const isMatch = mode === 'login' ? tab.innerText.includes('nhập') : tab.innerText.includes('ký');
+                tab.classList.toggle('active', isMatch);
             });
 
             if (mode === 'login') {
@@ -278,7 +277,7 @@
             }
         }
 
-        async function handleAuth(event) {
+        window.handleAuth = async function (event) {
             event.preventDefault();
             const errorMsg = document.getElementById('error-msg');
             errorMsg.style.display = 'none';
@@ -286,35 +285,18 @@
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
 
-            const API_BASE = window.location.origin + '/api/v1';
-
             try {
                 if (currentMode === 'register') {
                     const email = document.getElementById('email').value;
-                    const res = await fetch(`${API_BASE}/auth/register`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ username, email, password })
-                    });
-                    const data = await res.json();
-                    if (!res.ok) throw new Error(data.detail || 'Lỗi đăng ký');
+                    const res = await api.register({ username, email, password });
+                    if (!res.success) throw new Error(res.message);
 
                     // Auto login after register
                     currentMode = 'login';
-                    handleAuth(event);
+                    await window.handleAuth(event);
                 } else {
-                    const formData = new FormData();
-                    formData.append('username', username);
-                    formData.append('password', password);
-
-                    const res = await fetch(`${API_BASE}/auth/login`, {
-                        method: 'POST',
-                        body: formData
-                    });
-                    const data = await res.json();
-                    if (!res.ok) throw new Error(data.detail || 'Tên đăng nhập hoặc mật khẩu sai');
-
-                    localStorage.setItem('token', data.access_token);
+                    const res = await api.login(username, password);
+                    if (!res.success) throw new Error(res.message);
                     window.location.href = '/';
                 }
             } catch (err) {
@@ -323,13 +305,13 @@
             }
         }
 
-        function loginWithGoogle() {
+        window.loginWithGoogle = function () {
             window.location.href = '/api/v1/calendar/login';
         }
 
         // Check if already logged in
         document.addEventListener('DOMContentLoaded', () => {
-            if (localStorage.getItem('token')) {
+            if (localStorage.getItem('access_token')) {
                 window.location.href = '/';
             }
         });

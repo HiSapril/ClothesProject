@@ -1,0 +1,71 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.11.8, pytest-8.0.0, pluggy-1.6.0 -- C:\Program Files\Python311\python.exe
+cachedir: .pytest_cache
+rootdir: D:\hoc tap\ClothesProject
+configfile: pytest.ini
+testpaths: tests
+plugins: anyio-4.12.1, asyncio-0.23.5, mock-3.12.0
+asyncio: mode=Mode.AUTO
+collecting ... collected 12 items
+
+tests/test_ai_logic.py::test_category_mapping PASSED                     [  8%]
+tests/test_ai_logic.py::test_confidence_status_logic PASSED              [ 16%]
+tests/test_auth.py::test_register_and_login PASSED                       [ 25%]
+tests/test_auth.py::test_protected_endpoint_access PASSED                [ 33%]
+tests/test_auth.py::test_token_refresh PASSED                            [ 41%]
+tests/test_auth.py::test_logout_revocation PASSED                        [ 50%]
+tests/test_rbac.py::test_user_cannot_access_admin_endpoints PASSED       [ 58%]
+tests/test_rbac.py::test_admin_can_access_admin_endpoints PASSED         [ 66%]
+tests/test_rbac.py::test_user_isolation PASSED                           [ 75%]
+tests/test_recommendation.py::test_deterministic_scoring PASSED          [ 83%]
+tests/test_recommendation.py::test_low_confidence_penalty PASSED         [ 91%]
+tests/test_tasks.py::test_celery_task_mock_execution FAILED              [100%]
+
+================================== FAILURES ===================================
+_______________________ test_celery_task_mock_execution _______________________
+
+mocker = <pytest_mock.plugin.MockerFixture object at 0x0000022E3090D7D0>
+db = <sqlalchemy.orm.session.Session object at 0x0000022E309463D0>
+
+    def test_celery_task_mock_execution(mocker, db):
+        """Test that the Celery task correctly updates the database when mocked."""
+        # 1. Create a pending item
+        item = models.ClothingItem(
+            user_id=1,
+            original_image_path="test.jpg",
+            status="pending"
+        )
+        db.add(item)
+        db.commit()
+    
+        # 2. Mock the AI service to return a specific result
+        mock_ai = mocker.patch("app.services.tasks.analyze_image", return_value={
+            "processed_image_path": "proc.png",
+            "color_hex": "#123456",
+            "category_raw": "T-shirt",
+            "confidence": 0.95,
+            "raw_output": {}
+        })
+    
+        # 3. Mock the taxonomy mapping
+        mocker.patch("app.services.tasks.map_imagenet_label", return_value=FashionCategory.TOP)
+    
+        # 4. Run the task logic synchronously
+        # Signature: process_clothing_ai(self, item_id: int, image_hex: str, request_id: str = None)
+        process_clothing_ai(None, item.id, "fake_hex")
+    
+        # 5. Verify database updates
+        db.refresh(item)
+>       assert item.status == "completed"
+E       AssertionError: assert 'pending' == 'completed'
+E         
+E         - completed
+E         + pending
+
+tests\test_tasks.py:35: AssertionError
+---------------------------- Captured stdout call -----------------------------
+2026-03-04 09:28:24 | INFO     | app | [REQ:-] [TASK:-] [USER:-] | Processing AI for item None
+2026-03-04 09:28:24 | ERROR    | app | [REQ:-] [TASK:-] [USER:-] | Item None not found in database
+=========================== short test summary info ===========================
+FAILED tests/test_tasks.py::test_celery_task_mock_execution - AssertionError:...
+======================== 1 failed, 11 passed in 5.48s =========================

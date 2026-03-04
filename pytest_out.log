@@ -1,0 +1,18 @@
+ImportError while loading conftest 'D:\hoc tap\ClothesProject\tests\conftest.py'.
+tests\conftest.py:5: in <module>
+    from app.main import app
+app\main.py:10: in <module>
+    from app.api import endpoints
+app\api\endpoints.py:10: in <module>
+    from app.db.database import get_db
+app\db\database.py:3: in <module>
+    from app.core.config import settings
+app\core\config.py:26: in <module>
+    settings = Settings()
+               ^^^^^^^^^^
+C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\pydantic_settings\main.py:71: in __init__
+    super().__init__(
+E   pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+E   OPENWEATHER_API_KEY
+E     Extra inputs are not permitted [type=extra_forbidden, input_value='63d0ab7d3f6e447eb0d113454261201', input_type=str]
+E       For further information visit https://errors.pydantic.dev/2.6/v/extra_forbidden

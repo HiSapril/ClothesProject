@@ -17,6 +17,20 @@
     --shadow-soft: 0 10px 30px rgba(0, 0, 0, 0.3);
 }
 
+.demo-banner {
+    background: linear-gradient(90deg, #6C5DD3 0%, #7E70E0 100%);
+    color: white;
+    padding: 8px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: 0 0 12px 12px;
+    margin-bottom: 10px;
+}
+
 /* Base Styles */
 * {
     margin: 0;

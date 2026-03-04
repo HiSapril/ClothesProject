@@ -1,0 +1,132 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.11.8, pytest-8.0.0, pluggy-1.6.0 -- C:\Program Files\Python311\python.exe
+cachedir: .pytest_cache
+rootdir: D:\hoc tap\ClothesProject
+configfile: pytest.ini
+testpaths: tests
+plugins: anyio-4.12.1, asyncio-0.23.5, mock-3.12.0
+asyncio: mode=Mode.AUTO
+collecting ... collected 12 items
+
+tests/test_ai_logic.py::test_category_mapping PASSED                     [  8%]
+tests/test_ai_logic.py::test_confidence_status_logic PASSED              [ 16%]
+tests/test_auth.py::test_register_and_login PASSED                       [ 25%]
+tests/test_auth.py::test_protected_endpoint_access PASSED                [ 33%]
+tests/test_auth.py::test_token_refresh PASSED                            [ 41%]
+tests/test_auth.py::test_logout_revocation PASSED                        [ 50%]
+tests/test_rbac.py::test_user_cannot_access_admin_endpoints PASSED       [ 58%]
+tests/test_rbac.py::test_admin_can_access_admin_endpoints PASSED         [ 66%]
+tests/test_rbac.py::test_user_isolation PASSED                           [ 75%]
+tests/test_recommendation.py::test_deterministic_scoring FAILED          [ 83%]
+tests/test_recommendation.py::test_low_confidence_penalty FAILED         [ 91%]
+tests/test_tasks.py::test_celery_task_mock_execution FAILED              [100%]
+
+================================== FAILURES ===================================
+_________________________ test_deterministic_scoring __________________________
+
+engine = <app.services.recommendation_engine.RecommendationEngine object at 0x00000237E95AA710>
+
+    def test_deterministic_scoring(engine):
+        """Test that the same input yields the same score and explanation."""
+        item = models.ClothingItem(
+            id=1,
+            category=FashionCategory.TOP,
+            category_label="T-shirt",
+            main_color_hex="#FFFFFF"
+        )
+    
+        # Simulating weather & context
+        weather = {"main": "Clear", "temp": 25}
+        occasion = "casual"
+    
+>       score1, reason1 = engine._evaluate_outfit([item], weather, occasion)
+E       ValueError: too many values to unpack (expected 2)
+
+tests\test_recommendation.py:23: ValueError
+_________________________ test_low_confidence_penalty _________________________
+
+engine = <app.services.recommendation_engine.RecommendationEngine object at 0x00000237E951CE50>
+
+    def test_low_confidence_penalty(engine):
+        """Test that items with low confidence receive a penalty score."""
+        # We'll mock the internal scoring constants or just check the delta
+        item_confirmed = models.ClothingItem(category=FashionCategory.TOP, classification_status="CONFIRMED")
+        item_low = models.ClothingItem(category=FashionCategory.TOP, classification_status="LOW_CONFIDENCE")
+    
+        weather = {"main": "Clear", "temp": 25}
+    
+>       score_confirmed, _ = engine._evaluate_outfit([item_confirmed], weather, "casual")
+E       ValueError: too many values to unpack (expected 2)
+
+tests\test_recommendation.py:38: ValueError
+_______________________ test_celery_task_mock_execution _______________________
+
+mocker = <pytest_mock.plugin.MockerFixture object at 0x00000237E94A7610>
+db = <sqlalchemy.orm.session.Session object at 0x00000237E9511790>
+
+    def test_celery_task_mock_execution(mocker, db):
+        """Test that the Celery task correctly updates the database when mocked."""
+        # 1. Create a pending item
+        item = models.ClothingItem(
+            user_id=1,
+            original_image_path="test.jpg",
+            status="pending"
+        )
+        db.add(item)
+        db.commit()
+    
+        # 2. Mock the AI service to return a specific result
+        mock_ai = mocker.patch("app.services.tasks.analyze_image", return_value={
+            "processed_image_path": "proc.png",
+            "color_hex": "#123456",
+            "category_raw": "T-shirt",
+            "confidence": 0.95,
+            "raw_output": {}
+        })
+    
+        # 3. Mock the taxonomy mapping
+>       mocker.patch("app.services.tasks.map_imagenet_to_category", return_value=FashionCategory.TOP)
+
+tests\test_tasks.py:27: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\pytest_mock\plugin.py:419: in __call__
+    return self._start_patch(
+C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\pytest_mock\plugin.py:229: in _start_patch
+    mocked: MockType = p.start()
+C:\Program Files\Python311\Lib\unittest\mock.py:1591: in start
+    result = self.__enter__()
+C:\Program Files\Python311\Lib\unittest\mock.py:1443: in __enter__
+    original, local = self.get_original()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <unittest.mock._patch object at 0x00000237E9562CD0>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: <module 'app.services.tasks' from 'D:\\hoc tap\\ClothesProject\\app\\services\\tasks.py'> does not have the attribute 'map_imagenet_to_category'
+
+C:\Program Files\Python311\Lib\unittest\mock.py:1416: AttributeError
+=========================== short test summary info ===========================
+FAILED tests/test_recommendation.py::test_deterministic_scoring - ValueError:...
+FAILED tests/test_recommendation.py::test_low_confidence_penalty - ValueError...
+FAILED tests/test_tasks.py::test_celery_task_mock_execution - AttributeError:...
+========================= 3 failed, 9 passed in 5.73s =========================

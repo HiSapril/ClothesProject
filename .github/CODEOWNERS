@@ -1,0 +1,7 @@
+# Outfit AI Code Owners
+# Define who should review changes in specific directories
+
+*       @HiSapril
+/app/core/  @HiSapril
+/app/db/    @HiSapril
+/tests/     @HiSapril

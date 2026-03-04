@@ -1,0 +1,220 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.11.8, pytest-8.0.0, pluggy-1.6.0 -- C:\Program Files\Python311\python.exe
+cachedir: .pytest_cache
+rootdir: D:\hoc tap\ClothesProject
+configfile: pytest.ini
+plugins: anyio-4.12.1, asyncio-0.23.5, mock-3.12.0
+asyncio: mode=Mode.AUTO
+collecting ... collected 15 items
+
+tests/test_caching.py::test_cache_fallback_no_redis PASSED               [  6%]
+tests/test_caching.py::test_weather_cache_hit FAILED                     [ 13%]
+tests/test_caching.py::test_ai_deduplication_hit FAILED                  [ 20%]
+tests/test_auth.py::test_register_and_login PASSED                       [ 26%]
+tests/test_auth.py::test_protected_endpoint_access PASSED                [ 33%]
+tests/test_auth.py::test_token_refresh PASSED                            [ 40%]
+tests/test_auth.py::test_logout_revocation PASSED                        [ 46%]
+tests/test_rbac.py::test_user_cannot_access_admin_endpoints PASSED       [ 53%]
+tests/test_rbac.py::test_admin_can_access_admin_endpoints PASSED         [ 60%]
+tests/test_rbac.py::test_user_isolation PASSED                           [ 66%]
+tests/test_ai_logic.py::test_category_mapping PASSED                     [ 73%]
+tests/test_ai_logic.py::test_confidence_status_logic PASSED              [ 80%]
+tests/test_recommendation.py::test_deterministic_scoring PASSED          [ 86%]
+tests/test_recommendation.py::test_low_confidence_penalty PASSED         [ 93%]
+tests/test_tasks.py::test_celery_task_mock_execution FAILED              [100%]
+
+================================== FAILURES ===================================
+___________________________ test_weather_cache_hit ____________________________
+
+mocker = <pytest_mock.plugin.MockerFixture object at 0x000001DC9A5DC2D0>
+
+    def test_weather_cache_hit(mocker):
+        mock_cache_get = mocker.patch("app.core.cache.cache.get")
+        mock_get = mocker.patch("requests.get")
+        mock_cache_get.return_value = {"temp": 20, "condition": "Sunny"}
+        result = weather_service.get_current_weather(10.0, 20.0)
+>       assert result["temp"] == 20
+E       assert 25 == 20
+
+tests\test_caching.py:20: AssertionError
+__________________________ test_ai_deduplication_hit __________________________
+
+mocker = <pytest_mock.plugin.MockerFixture object at 0x000001DC9A5DC510>
+db = <sqlalchemy.orm.session.Session object at 0x000001DC99DADED0>
+
+    def test_ai_deduplication_hit(mocker, db):
+        existing = models.ClothingItem(id=1, user_id=1, image_hash="abc", status="completed", category=FashionCategory.TOP)
+        new_item = models.ClothingItem(id=2, user_id=1, image_hash="abc", status="pending")
+        db.add(existing)
+        db.add(new_item)
+        db.commit()
+        mock_analyze = mocker.patch("app.services.tasks.analyze_image")
+        process_clothing_ai(mocker.Mock(), new_item.id, "abc")
+        db.refresh(new_item)
+>       assert new_item.status == "completed"
+E       AssertionError: assert 'pending' == 'completed'
+E         
+E         - completed
+E         + pending
+
+tests\test_caching.py:32: AssertionError
+---------------------------- Captured stdout call -----------------------------
+2026-03-04 09:42:36 | INFO     | app | [REQ:-] [TASK:-] [USER:-] | Processing AI for item <Mock id='2046995030416'>
+2026-03-04 09:42:36 | ERROR    | app | [REQ:-] [TASK:-] [USER:-] | AI error: (psycopg2.ProgrammingError) can't adapt type 'Mock'
+[SQL: SELECT clothing_items.id AS clothing_items_id, clothing_items.user_id AS clothing_items_user_id, clothing_items.original_image_path AS clothing_items_original_image_path, clothing_items.processed_image_path AS clothing_items_processed_image_path, clothing_items.category_label AS clothing_items_category_label, clothing_items.category_raw AS clothing_items_category_raw, clothing_items.main_color_hex AS clothing_items_main_color_hex, clothing_items.image_hash AS clothing_items_image_hash, clothing_items.category AS clothing_items_category, clothing_items.confidence_score AS clothing_items_confidence_score, clothing_items.classification_status AS clothing_items_classification_status, clothing_items.raw_model_output AS clothing_items_raw_model_output, clothing_items.type AS clothing_items_type, clothing_items.occasion AS clothing_items_occasion, clothing_items.status AS clothing_items_status, clothing_items.task_id AS clothing_items_task_id, clothing_items.created_at AS clothing_items_created_at 
+FROM clothing_items 
+WHERE clothing_items.id = %(id_1)s 
+ LIMIT %(param_1)s]
+[parameters: {'id_1': <Mock id='2046995030416'>, 'param_1': 1}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+Traceback (most recent call last):
+  File "C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\sqlalchemy\engine\base.py", line 1969, in _exec_single_context
+    self.dialect.do_execute(
+  File "C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\sqlalchemy\engine\default.py", line 922, in do_execute
+    cursor.execute(statement, parameters)
+psycopg2.ProgrammingError: can't adapt type 'Mock'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\hoc tap\ClothesProject\app\services\tasks.py", line 20, in process_clothing_ai
+    item = db.query(models.ClothingItem).filter(models.ClothingItem.id == item_id).first()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\sqlalchemy\orm\query.py", line 2748, in first
+    return self.limit(1)._iter().first()  # type: ignore
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\sqlalchemy\orm\query.py", line 2847, in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+                                                  ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\sqlalchemy\orm\session.py", line 2308, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\sqlalchemy\orm\session.py", line 2190, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\sqlalchemy\orm\context.py", line 293, in orm_execute_statement
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\sqlalchemy\engine\base.py", line 1416, in execute
+    return meth(
+           ^^^^^
+  File "C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\sqlalchemy\sql\elements.py", line 517, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\sqlalchemy\engine\base.py", line 1639, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\sqlalchemy\engine\base.py", line 1848, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\sqlalchemy\engine\base.py", line 1988, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\sqlalchemy\engine\base.py", line 2344, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\sqlalchemy\engine\base.py", line 1969, in _exec_single_context
+    self.dialect.do_execute(
+  File "C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\sqlalchemy\engine\default.py", line 922, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.ProgrammingError: (psycopg2.ProgrammingError) can't adapt type 'Mock'
+[SQL: SELECT clothing_items.id AS clothing_items_id, clothing_items.user_id AS clothing_items_user_id, clothing_items.original_image_path AS clothing_items_original_image_path, clothing_items.processed_image_path AS clothing_items_processed_image_path, clothing_items.category_label AS clothing_items_category_label, clothing_items.category_raw AS clothing_items_category_raw, clothing_items.main_color_hex AS clothing_items_main_color_hex, clothing_items.image_hash AS clothing_items_image_hash, clothing_items.category AS clothing_items_category, clothing_items.confidence_score AS clothing_items_confidence_score, clothing_items.classification_status AS clothing_items_classification_status, clothing_items.raw_model_output AS clothing_items_raw_model_output, clothing_items.type AS clothing_items_type, clothing_items.occasion AS clothing_items_occasion, clothing_items.status AS clothing_items_status, clothing_items.task_id AS clothing_items_task_id, clothing_items.created_at AS clothing_items_created_at 
+FROM clothing_items 
+WHERE clothing_items.id = %(id_1)s 
+ LIMIT %(param_1)s]
+[parameters: {'id_1': <Mock id='2046995030416'>, 'param_1': 1}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+_______________________ test_celery_task_mock_execution _______________________
+
+mocker = <pytest_mock.plugin.MockerFixture object at 0x000001DC9A8EA550>
+db = <sqlalchemy.orm.session.Session object at 0x000001DC9A941D10>
+
+    def test_celery_task_mock_execution(mocker, db):
+        item = models.ClothingItem(user_id=1, original_image_path="test.jpg", status="pending")
+        db.add(item)
+        db.commit()
+        db.refresh(item)
+        mocker.patch("app.services.tasks.analyze_image", return_value={
+            "processed_image_path": "proc.png",
+            "color_hex": "#123456",
+            "category_raw": "T-shirt",
+            "confidence": 0.95,
+            "raw_output": {}
+        })
+        mocker.patch("app.services.tasks.map_imagenet_label", return_value=FashionCategory.TOP)
+        process_clothing_ai(mocker.Mock(), item.id, "fake_hex")
+        db.refresh(item)
+>       assert item.status == "completed"
+E       AssertionError: assert 'pending' == 'completed'
+E         
+E         - completed
+E         + pending
+
+tests\test_tasks.py:21: AssertionError
+---------------------------- Captured stdout call -----------------------------
+2026-03-04 09:42:41 | INFO     | app | [REQ:-] [TASK:-] [USER:-] | Processing AI for item <Mock id='2046993670032'>
+2026-03-04 09:42:41 | ERROR    | app | [REQ:-] [TASK:-] [USER:-] | AI error: (psycopg2.ProgrammingError) can't adapt type 'Mock'
+[SQL: SELECT clothing_items.id AS clothing_items_id, clothing_items.user_id AS clothing_items_user_id, clothing_items.original_image_path AS clothing_items_original_image_path, clothing_items.processed_image_path AS clothing_items_processed_image_path, clothing_items.category_label AS clothing_items_category_label, clothing_items.category_raw AS clothing_items_category_raw, clothing_items.main_color_hex AS clothing_items_main_color_hex, clothing_items.image_hash AS clothing_items_image_hash, clothing_items.category AS clothing_items_category, clothing_items.confidence_score AS clothing_items_confidence_score, clothing_items.classification_status AS clothing_items_classification_status, clothing_items.raw_model_output AS clothing_items_raw_model_output, clothing_items.type AS clothing_items_type, clothing_items.occasion AS clothing_items_occasion, clothing_items.status AS clothing_items_status, clothing_items.task_id AS clothing_items_task_id, clothing_items.created_at AS clothing_items_created_at 
+FROM clothing_items 
+WHERE clothing_items.id = %(id_1)s 
+ LIMIT %(param_1)s]
+[parameters: {'id_1': <Mock id='2046993670032'>, 'param_1': 1}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+Traceback (most recent call last):
+  File "C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\sqlalchemy\engine\base.py", line 1969, in _exec_single_context
+    self.dialect.do_execute(
+  File "C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\sqlalchemy\engine\default.py", line 922, in do_execute
+    cursor.execute(statement, parameters)
+psycopg2.ProgrammingError: can't adapt type 'Mock'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\hoc tap\ClothesProject\app\services\tasks.py", line 20, in process_clothing_ai
+    item = db.query(models.ClothingItem).filter(models.ClothingItem.id == item_id).first()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\sqlalchemy\orm\query.py", line 2748, in first
+    return self.limit(1)._iter().first()  # type: ignore
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\sqlalchemy\orm\query.py", line 2847, in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+                                                  ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\sqlalchemy\orm\session.py", line 2308, in execute
+    return self._execute_internal(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\sqlalchemy\orm\session.py", line 2190, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\sqlalchemy\orm\context.py", line 293, in orm_execute_statement
+    result = conn.execute(
+             ^^^^^^^^^^^^^
+  File "C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\sqlalchemy\engine\base.py", line 1416, in execute
+    return meth(
+           ^^^^^
+  File "C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\sqlalchemy\sql\elements.py", line 517, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\sqlalchemy\engine\base.py", line 1639, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\sqlalchemy\engine\base.py", line 1848, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\sqlalchemy\engine\base.py", line 1988, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\sqlalchemy\engine\base.py", line 2344, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\sqlalchemy\engine\base.py", line 1969, in _exec_single_context
+    self.dialect.do_execute(
+  File "C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\sqlalchemy\engine\default.py", line 922, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.ProgrammingError: (psycopg2.ProgrammingError) can't adapt type 'Mock'
+[SQL: SELECT clothing_items.id AS clothing_items_id, clothing_items.user_id AS clothing_items_user_id, clothing_items.original_image_path AS clothing_items_original_image_path, clothing_items.processed_image_path AS clothing_items_processed_image_path, clothing_items.category_label AS clothing_items_category_label, clothing_items.category_raw AS clothing_items_category_raw, clothing_items.main_color_hex AS clothing_items_main_color_hex, clothing_items.image_hash AS clothing_items_image_hash, clothing_items.category AS clothing_items_category, clothing_items.confidence_score AS clothing_items_confidence_score, clothing_items.classification_status AS clothing_items_classification_status, clothing_items.raw_model_output AS clothing_items_raw_model_output, clothing_items.type AS clothing_items_type, clothing_items.occasion AS clothing_items_occasion, clothing_items.status AS clothing_items_status, clothing_items.task_id AS clothing_items_task_id, clothing_items.created_at AS clothing_items_created_at 
+FROM clothing_items 
+WHERE clothing_items.id = %(id_1)s 
+ LIMIT %(param_1)s]
+[parameters: {'id_1': <Mock id='2046993670032'>, 'param_1': 1}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+=========================== short test summary info ===========================
+FAILED tests/test_caching.py::test_weather_cache_hit - assert 25 == 20
+FAILED tests/test_caching.py::test_ai_deduplication_hit - AssertionError: ass...
+FAILED tests/test_tasks.py::test_celery_task_mock_execution - AssertionError:...
+======================== 3 failed, 12 passed in 9.75s =========================

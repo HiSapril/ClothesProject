@@ -15,6 +15,10 @@
 
 <body>
     <div class="app-container">
+        <div id="demoBanner" class="demo-banner" style="display: none;">
+            <ion-icon name="information-circle-outline"></ion-icon>
+            <span>Môi trường Demo: Dữ liệu có thể được đặt lại định kỳ.</span>
+        </div>
         <header>
             <div class="logo">
                 <ion-icon name="shirt-outline" style="vertical-align: middle;"></ion-icon>
@@ -175,6 +179,16 @@
                         style="display: flex; flex-direction: column; gap: 15px;">
                         <!-- Results injected here -->
                     </div>
+
+                    <!-- Operational Status -->
+                    <div class="side-panel"
+                        style="margin-top: 20px; border-top: 1px solid var(--border); padding-top: 15px;">
+                        <span class="panel-title" style="font-size: 11px; opacity: 0.5;">Trạng thái hệ thống</span>
+                        <div id="sysStatus" style="font-size: 11px; display: flex; justify-content: space-between;">
+                            <span id="sysReady">Đang kiểm tra...</span>
+                            <span id="sysVersion">v1.2.1</span>
+                        </div>
+                    </div>
                 </div>
             </aside>
         </main>
@@ -224,7 +238,7 @@
     <!-- Notification Toast -->
     <div id="toast" class="toast"></div>
 
-    <script src="/static/js/app.js?v=11"></script>
+    <script type="module" src="/static/js/app.js"></script>
 </body>
 
 </html>

@@ -1,0 +1,602 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.11.8, pytest-8.0.0, pluggy-1.6.0 -- C:\Program Files\Python311\python.exe
+cachedir: .pytest_cache
+rootdir: D:\hoc tap\ClothesProject
+configfile: pytest.ini
+testpaths: tests
+plugins: anyio-4.12.1, asyncio-0.23.5, mock-3.12.0
+asyncio: mode=Mode.AUTO
+collecting ... collected 12 items
+
+tests/test_ai_logic.py::test_category_mapping ERROR                      [  8%]
+tests/test_ai_logic.py::test_confidence_status_logic ERROR               [ 16%]
+tests/test_auth.py::test_register_and_login ERROR                        [ 25%]
+tests/test_auth.py::test_protected_endpoint_access ERROR                 [ 33%]
+tests/test_auth.py::test_token_refresh ERROR                             [ 41%]
+tests/test_auth.py::test_logout_revocation ERROR                         [ 50%]
+tests/test_rbac.py::test_user_cannot_access_admin_endpoints ERROR        [ 58%]
+tests/test_rbac.py::test_admin_can_access_admin_endpoints ERROR          [ 66%]
+tests/test_rbac.py::test_user_isolation ERROR                            [ 75%]
+tests/test_recommendation.py::test_deterministic_scoring ERROR           [ 83%]
+tests/test_recommendation.py::test_low_confidence_penalty ERROR          [ 91%]
+tests/test_tasks.py::test_celery_task_mock_execution ERROR               [100%]
+
+=================================== ERRORS ====================================
+___________________ ERROR at setup of test_category_mapping ___________________
+
+mocker = <pytest_mock.plugin.MockerFixture object at 0x000001809C0B3E10>
+
+    @pytest.fixture(autouse=True)
+    def mock_external_calls(mocker):
+        """Mock Redis, Weather, and Calendar by default to avoid network calls."""
+>       mocker.patch("app.main.FastApiLimiter.init", return_value=None)
+
+tests\conftest.py:69: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\pytest_mock\plugin.py:419: in __call__
+    return self._start_patch(
+C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\pytest_mock\plugin.py:229: in _start_patch
+    mocked: MockType = p.start()
+C:\Program Files\Python311\Lib\unittest\mock.py:1591: in start
+    result = self.__enter__()
+C:\Program Files\Python311\Lib\unittest\mock.py:1443: in __enter__
+    original, local = self.get_original()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <unittest.mock._patch object at 0x000001809C5DE590>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: None does not have the attribute 'init'
+
+C:\Program Files\Python311\Lib\unittest\mock.py:1416: AttributeError
+_______________ ERROR at setup of test_confidence_status_logic ________________
+
+mocker = <pytest_mock.plugin.MockerFixture object at 0x000001809CA6CD10>
+
+    @pytest.fixture(autouse=True)
+    def mock_external_calls(mocker):
+        """Mock Redis, Weather, and Calendar by default to avoid network calls."""
+>       mocker.patch("app.main.FastApiLimiter.init", return_value=None)
+
+tests\conftest.py:69: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\pytest_mock\plugin.py:419: in __call__
+    return self._start_patch(
+C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\pytest_mock\plugin.py:229: in _start_patch
+    mocked: MockType = p.start()
+C:\Program Files\Python311\Lib\unittest\mock.py:1591: in start
+    result = self.__enter__()
+C:\Program Files\Python311\Lib\unittest\mock.py:1443: in __enter__
+    original, local = self.get_original()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <unittest.mock._patch object at 0x000001809CA6D150>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: None does not have the attribute 'init'
+
+C:\Program Files\Python311\Lib\unittest\mock.py:1416: AttributeError
+__________________ ERROR at setup of test_register_and_login __________________
+
+mocker = <pytest_mock.plugin.MockerFixture object at 0x000001809C9E6ED0>
+
+    @pytest.fixture(autouse=True)
+    def mock_external_calls(mocker):
+        """Mock Redis, Weather, and Calendar by default to avoid network calls."""
+>       mocker.patch("app.main.FastApiLimiter.init", return_value=None)
+
+tests\conftest.py:69: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\pytest_mock\plugin.py:419: in __call__
+    return self._start_patch(
+C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\pytest_mock\plugin.py:229: in _start_patch
+    mocked: MockType = p.start()
+C:\Program Files\Python311\Lib\unittest\mock.py:1591: in start
+    result = self.__enter__()
+C:\Program Files\Python311\Lib\unittest\mock.py:1443: in __enter__
+    original, local = self.get_original()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <unittest.mock._patch object at 0x000001809C9E7210>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: None does not have the attribute 'init'
+
+C:\Program Files\Python311\Lib\unittest\mock.py:1416: AttributeError
+______________ ERROR at setup of test_protected_endpoint_access _______________
+
+mocker = <pytest_mock.plugin.MockerFixture object at 0x000001809C97BE10>
+
+    @pytest.fixture(autouse=True)
+    def mock_external_calls(mocker):
+        """Mock Redis, Weather, and Calendar by default to avoid network calls."""
+>       mocker.patch("app.main.FastApiLimiter.init", return_value=None)
+
+tests\conftest.py:69: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\pytest_mock\plugin.py:419: in __call__
+    return self._start_patch(
+C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\pytest_mock\plugin.py:229: in _start_patch
+    mocked: MockType = p.start()
+C:\Program Files\Python311\Lib\unittest\mock.py:1591: in start
+    result = self.__enter__()
+C:\Program Files\Python311\Lib\unittest\mock.py:1443: in __enter__
+    original, local = self.get_original()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <unittest.mock._patch object at 0x000001809C97BD90>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: None does not have the attribute 'init'
+
+C:\Program Files\Python311\Lib\unittest\mock.py:1416: AttributeError
+____________________ ERROR at setup of test_token_refresh _____________________
+
+mocker = <pytest_mock.plugin.MockerFixture object at 0x000001809C98FB10>
+
+    @pytest.fixture(autouse=True)
+    def mock_external_calls(mocker):
+        """Mock Redis, Weather, and Calendar by default to avoid network calls."""
+>       mocker.patch("app.main.FastApiLimiter.init", return_value=None)
+
+tests\conftest.py:69: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\pytest_mock\plugin.py:419: in __call__
+    return self._start_patch(
+C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\pytest_mock\plugin.py:229: in _start_patch
+    mocked: MockType = p.start()
+C:\Program Files\Python311\Lib\unittest\mock.py:1591: in start
+    result = self.__enter__()
+C:\Program Files\Python311\Lib\unittest\mock.py:1443: in __enter__
+    original, local = self.get_original()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <unittest.mock._patch object at 0x000001809C98D410>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: None does not have the attribute 'init'
+
+C:\Program Files\Python311\Lib\unittest\mock.py:1416: AttributeError
+__________________ ERROR at setup of test_logout_revocation ___________________
+
+mocker = <pytest_mock.plugin.MockerFixture object at 0x000001809C5B64D0>
+
+    @pytest.fixture(autouse=True)
+    def mock_external_calls(mocker):
+        """Mock Redis, Weather, and Calendar by default to avoid network calls."""
+>       mocker.patch("app.main.FastApiLimiter.init", return_value=None)
+
+tests\conftest.py:69: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\pytest_mock\plugin.py:419: in __call__
+    return self._start_patch(
+C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\pytest_mock\plugin.py:229: in _start_patch
+    mocked: MockType = p.start()
+C:\Program Files\Python311\Lib\unittest\mock.py:1591: in start
+    result = self.__enter__()
+C:\Program Files\Python311\Lib\unittest\mock.py:1443: in __enter__
+    original, local = self.get_original()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <unittest.mock._patch object at 0x000001809C5B5C50>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: None does not have the attribute 'init'
+
+C:\Program Files\Python311\Lib\unittest\mock.py:1416: AttributeError
+__________ ERROR at setup of test_user_cannot_access_admin_endpoints __________
+
+mocker = <pytest_mock.plugin.MockerFixture object at 0x000001809C97BD50>
+
+    @pytest.fixture(autouse=True)
+    def mock_external_calls(mocker):
+        """Mock Redis, Weather, and Calendar by default to avoid network calls."""
+>       mocker.patch("app.main.FastApiLimiter.init", return_value=None)
+
+tests\conftest.py:69: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\pytest_mock\plugin.py:419: in __call__
+    return self._start_patch(
+C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\pytest_mock\plugin.py:229: in _start_patch
+    mocked: MockType = p.start()
+C:\Program Files\Python311\Lib\unittest\mock.py:1591: in start
+    result = self.__enter__()
+C:\Program Files\Python311\Lib\unittest\mock.py:1443: in __enter__
+    original, local = self.get_original()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <unittest.mock._patch object at 0x000001809C97BAD0>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: None does not have the attribute 'init'
+
+C:\Program Files\Python311\Lib\unittest\mock.py:1416: AttributeError
+___________ ERROR at setup of test_admin_can_access_admin_endpoints ___________
+
+mocker = <pytest_mock.plugin.MockerFixture object at 0x000001809C5F6550>
+
+    @pytest.fixture(autouse=True)
+    def mock_external_calls(mocker):
+        """Mock Redis, Weather, and Calendar by default to avoid network calls."""
+>       mocker.patch("app.main.FastApiLimiter.init", return_value=None)
+
+tests\conftest.py:69: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\pytest_mock\plugin.py:419: in __call__
+    return self._start_patch(
+C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\pytest_mock\plugin.py:229: in _start_patch
+    mocked: MockType = p.start()
+C:\Program Files\Python311\Lib\unittest\mock.py:1591: in start
+    result = self.__enter__()
+C:\Program Files\Python311\Lib\unittest\mock.py:1443: in __enter__
+    original, local = self.get_original()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <unittest.mock._patch object at 0x000001809C8B4AD0>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: None does not have the attribute 'init'
+
+C:\Program Files\Python311\Lib\unittest\mock.py:1416: AttributeError
+____________________ ERROR at setup of test_user_isolation ____________________
+
+mocker = <pytest_mock.plugin.MockerFixture object at 0x000001809C97A410>
+
+    @pytest.fixture(autouse=True)
+    def mock_external_calls(mocker):
+        """Mock Redis, Weather, and Calendar by default to avoid network calls."""
+>       mocker.patch("app.main.FastApiLimiter.init", return_value=None)
+
+tests\conftest.py:69: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\pytest_mock\plugin.py:419: in __call__
+    return self._start_patch(
+C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\pytest_mock\plugin.py:229: in _start_patch
+    mocked: MockType = p.start()
+C:\Program Files\Python311\Lib\unittest\mock.py:1591: in start
+    result = self.__enter__()
+C:\Program Files\Python311\Lib\unittest\mock.py:1443: in __enter__
+    original, local = self.get_original()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <unittest.mock._patch object at 0x000001809C979090>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: None does not have the attribute 'init'
+
+C:\Program Files\Python311\Lib\unittest\mock.py:1416: AttributeError
+________________ ERROR at setup of test_deterministic_scoring _________________
+
+mocker = <pytest_mock.plugin.MockerFixture object at 0x000001809C961510>
+
+    @pytest.fixture(autouse=True)
+    def mock_external_calls(mocker):
+        """Mock Redis, Weather, and Calendar by default to avoid network calls."""
+>       mocker.patch("app.main.FastApiLimiter.init", return_value=None)
+
+tests\conftest.py:69: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\pytest_mock\plugin.py:419: in __call__
+    return self._start_patch(
+C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\pytest_mock\plugin.py:229: in _start_patch
+    mocked: MockType = p.start()
+C:\Program Files\Python311\Lib\unittest\mock.py:1591: in start
+    result = self.__enter__()
+C:\Program Files\Python311\Lib\unittest\mock.py:1443: in __enter__
+    original, local = self.get_original()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <unittest.mock._patch object at 0x000001809C963E50>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: None does not have the attribute 'init'
+
+C:\Program Files\Python311\Lib\unittest\mock.py:1416: AttributeError
+________________ ERROR at setup of test_low_confidence_penalty ________________
+
+mocker = <pytest_mock.plugin.MockerFixture object at 0x000001809C920990>
+
+    @pytest.fixture(autouse=True)
+    def mock_external_calls(mocker):
+        """Mock Redis, Weather, and Calendar by default to avoid network calls."""
+>       mocker.patch("app.main.FastApiLimiter.init", return_value=None)
+
+tests\conftest.py:69: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\pytest_mock\plugin.py:419: in __call__
+    return self._start_patch(
+C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\pytest_mock\plugin.py:229: in _start_patch
+    mocked: MockType = p.start()
+C:\Program Files\Python311\Lib\unittest\mock.py:1591: in start
+    result = self.__enter__()
+C:\Program Files\Python311\Lib\unittest\mock.py:1443: in __enter__
+    original, local = self.get_original()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <unittest.mock._patch object at 0x000001809C9205D0>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: None does not have the attribute 'init'
+
+C:\Program Files\Python311\Lib\unittest\mock.py:1416: AttributeError
+______________ ERROR at setup of test_celery_task_mock_execution ______________
+
+mocker = <pytest_mock.plugin.MockerFixture object at 0x000001809C8CFE90>
+
+    @pytest.fixture(autouse=True)
+    def mock_external_calls(mocker):
+        """Mock Redis, Weather, and Calendar by default to avoid network calls."""
+>       mocker.patch("app.main.FastApiLimiter.init", return_value=None)
+
+tests\conftest.py:69: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\pytest_mock\plugin.py:419: in __call__
+    return self._start_patch(
+C:\Users\Acer\AppData\Roaming\Python\Python311\site-packages\pytest_mock\plugin.py:229: in _start_patch
+    mocked: MockType = p.start()
+C:\Program Files\Python311\Lib\unittest\mock.py:1591: in start
+    result = self.__enter__()
+C:\Program Files\Python311\Lib\unittest\mock.py:1443: in __enter__
+    original, local = self.get_original()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <unittest.mock._patch object at 0x000001809C8CF990>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: None does not have the attribute 'init'
+
+C:\Program Files\Python311\Lib\unittest\mock.py:1416: AttributeError
+=========================== short test summary info ===========================
+ERROR tests/test_ai_logic.py::test_category_mapping - AttributeError: None do...
+ERROR tests/test_ai_logic.py::test_confidence_status_logic - AttributeError: ...
+ERROR tests/test_auth.py::test_register_and_login - AttributeError: None does...
+ERROR tests/test_auth.py::test_protected_endpoint_access - AttributeError: No...
+ERROR tests/test_auth.py::test_token_refresh - AttributeError: None does not ...
+ERROR tests/test_auth.py::test_logout_revocation - AttributeError: None does ...
+ERROR tests/test_rbac.py::test_user_cannot_access_admin_endpoints - Attribute...
+ERROR tests/test_rbac.py::test_admin_can_access_admin_endpoints - AttributeEr...
+ERROR tests/test_rbac.py::test_user_isolation - AttributeError: None does not...
+ERROR tests/test_recommendation.py::test_deterministic_scoring - AttributeErr...
+ERROR tests/test_recommendation.py::test_low_confidence_penalty - AttributeEr...
+ERROR tests/test_tasks.py::test_celery_task_mock_execution - AttributeError: ...
+============================= 12 errors in 1.25s ==============================
