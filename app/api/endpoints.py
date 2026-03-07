@@ -1,8 +1,8 @@
-from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Form
+from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Form, BackgroundTasks
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from typing import List
-from datetime import datetime
+from datetime import datetime, date as py_date
 import shutil
 import os
 import uuid
@@ -19,8 +19,27 @@ from app.core.celery_app import celery_app
 from celery.result import AsyncResult
 from app.core.config import settings
 from app.api.deps import get_current_user, RoleChecker
+from app.core.logging_config import setup_logging, request_id_ctx
+
+logger = setup_logging()
+import logging
+logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+logging.getLogger("uvicorn.error").setLevel(logging.WARNING)
+logging.getLogger("app").setLevel(logging.INFO)
 try:
-    from fastapi_limiter.depends import RateLimiter
+    from fastapi_limiter.depends import RateLimiter as RealRateLimiter
+    
+    def RateLimiter(*args, **kwargs):
+        """Safe wrapper for RateLimiter that fails silent if Redis/Limiter is not initialized"""
+        real_limiter = RealRateLimiter(*args, **kwargs)
+        async def safe_limiter(request = None, response = None):
+            try:
+                return await real_limiter(request, response)
+            except Exception as e:
+                # If Redis is down or Limiter not init, just allow the request
+                logger.debug(f"RateLimiter fallback triggered: {e}")
+                return True
+        return safe_limiter
 except (ImportError, TypeError):
     # Fallback for environments with conflicting redis/aioredis dependencies
     def RateLimiter(*args, **kwargs):
@@ -35,7 +54,7 @@ router = APIRouter()
 
 @router.get("/version", tags=["Utility"])
 async def get_version():
-    return {"version": "1.2.0", "status": "Frontend Readiness Active"}
+    return {"version": "1.3.10", "status": "Scientific Insights & UI Polish"}
 
 @router.get("/users/me", response_model=schemas.UserResponse, tags=["User"])
 async def read_user_me(current_user: models.User = Depends(get_current_user)):
@@ -120,6 +139,7 @@ def get_weather(lat: float, lon: float):
 
 @router.post("/items/upload", response_model=schemas.AsyncUploadResponse, tags=["Clothing"], dependencies=[Depends(RateLimiter(times=5, seconds=60))])
 async def upload_clothing_item(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
@@ -130,6 +150,8 @@ async def upload_clothing_item(
     3. Offload AI processing to Celery
     4. Return task_id and item_id
     """
+    rid = request_id_ctx.get()
+    
     # 1. Save original
     file_ext = file.filename.split(".")[-1]
     filename = f"{uuid.uuid4()}.{file_ext}"
@@ -148,8 +170,6 @@ async def upload_clothing_item(
         models.ClothingItem.user_id == current_user.id
     ).first()
     if existing_item:
-        from app.core.logging_config import setup_logging
-        logger = setup_logging()
         logger.info(f"Idempotent upload detected for user {current_user.id}, hash {image_hash}")
         return schemas.AsyncUploadResponse(
             item_id=existing_item.id,
@@ -168,25 +188,41 @@ async def upload_clothing_item(
     db.commit()
     db.refresh(db_item)
     
-    # 3. Offload to Celery
-    from app.core.logging_config import request_id_ctx
-    rid = request_id_ctx.get()
-    
+    # 3. Offload to Native BackgroundTasks
+    # No more Celery/Redis dependency for robustness
     image_hex = content.hex()
-    task = process_clothing_ai.delay(db_item.id, image_hex, request_id=rid)
+    background_tasks.add_task(process_clothing_ai, db_item.id, image_hex, request_id=rid)
     
-    # Update item with task_id
-    db_item.task_id = task.id
+    db_item.task_id = f"bg_{db_item.id}_{uuid.uuid4().hex[:8]}"
     db.commit()
     
     return schemas.AsyncUploadResponse(
         item_id=db_item.id,
-        task_id=task.id,
+        task_id=db_item.task_id,
         status="QUEUED"
     )
 
 @router.get("/items/task/{task_id}", response_model=schemas.TaskStatusResponse, tags=["AI"])
 async def get_task_status(task_id: str, db: Session = Depends(get_db)):
+    if task_id == "SYNC_PROCESSED":
+        # Handle cases where processing was done synchronously.
+        # We need to find the item and check its status in DB.
+        db_item = db.query(models.ClothingItem).filter(
+            (models.ClothingItem.task_id == "SYNC_PROCESSED") | 
+            (models.ClothingItem.status.in_(["COMPLETED", "FAILED"]))
+        ).order_by(models.ClothingItem.created_at.desc()).first()
+        
+        status = "SUCCESS" if db_item and db_item.status == "COMPLETED" else "PENDING"
+        if db_item and db_item.status == "FAILED": status = "FAILURE"
+        
+        return schemas.TaskStatusResponse(
+            task_id=task_id,
+            status=status,
+            result=None,
+            failure_reason=db_item.failure_reason if db_item else None,
+            retryable=True
+        )
+
     """Check status of an AI processing job with detailed failure info"""
     task_result = AsyncResult(task_id, app=celery_app)
     
@@ -232,49 +268,61 @@ def get_recommendations(
     current_user: models.User = Depends(get_current_user)
 ):
     user_id = current_user.id
-    weather = weather_service.get_current_weather(req.lat, req.lon)
     
+    # If version says 1.2.x, user might have ghost processes.
+    # Logic is now ultra-permissive for the minimalist UI.
+    actual_strategy = schemas.RecommendationStrategy.CONTEXT_AWARE
+    if str(req.strategy).upper() == "BASELINE":
+        actual_strategy = schemas.RecommendationStrategy.BASELINE
+
+    weather = weather_service.get_current_weather(req.lat, req.lon)
+    real_event_name = None  # Only set when an actual calendar event is selected
+
     if req.selected_event_id and current_user.google_token:
         event_info, new_token = calendar_service.get_event_by_id(current_user.google_token, req.selected_event_id)
         if new_token:
             current_user.google_token = new_token
             db.commit()
-        
+
         if event_info:
             occasion = event_info['occasion']
             event_context = f"{event_info['summary']}"
+            real_event_name = event_info['summary']  # e.g. "Hop team", "Di gym"
         else:
             occasion = models.OccasionEnum.CASUAL
-            event_context = "Thường ngày"
+            event_context = "Thuong ngay"
     elif req.force_occasion:
         occasion = req.force_occasion
         event_context = {
-            "casual": "Đi chơi / Thường ngày",
-            "formal": "Trang trọng / Sự kiện",
-            "sport": "Thể thao"
+            "casual": "Thuong ngay",
+            "formal": "Trang trong",
+            "sport": "The thao"
         }.get(occasion.value, occasion.value)
+        # real_event_name stays None - user picked occasion manually, not a specific event
     else:
         if current_user.google_token:
             cal_info, new_token = calendar_service.get_current_occasion_from_calendar(current_user.google_token)
             if new_token:
                 current_user.google_token = new_token
                 db.commit()
-            
+
             if cal_info:
                 occasion = cal_info["occasion"]
                 event_context = cal_info["summary"]
+                real_event_name = cal_info["summary"]  # Auto-detected event
             else:
                 occasion = models.OccasionEnum.CASUAL
-                event_context = "Thường ngày"
+                event_context = "Thuong ngay"
         else:
             occasion = models.OccasionEnum.CASUAL
-            event_context = "Thường ngày"
-        
+            event_context = "Thuong ngay"
+
     outfits_data = recommendation_engine.recommend(
-        db, user_id, weather, occasion, 
-        strategy=req.strategy, 
+        db, user_id, weather, occasion,
+        strategy=actual_strategy,
         decision_layer_enabled=req.decision_layer_enabled,
-        context_override=req.context_override
+        context_override=req.context_override,
+        event_name=real_event_name  # None when no real calendar event selected
     )
     
     outfits_pydantic = []
@@ -296,9 +344,14 @@ def get_recommendations(
                 created_at=item.created_at
              ))
              
+        # Score from algorithm: max possible score is exactly 100 points.
+        suitability_pct = min(100, max(0, round(outfit["score"])))
+        
         outfits_pydantic.append(schemas.OutfitResponse(
             items=items_pydantic,
             score=outfit["score"],
+            suitability_pct=suitability_pct,
+            breakdown=outfit.get("explanations", []),
             reason=outfit.get("reason"),
             decision_status=outfit.get("decision_status", "CONFIRMED")
         ))
@@ -384,22 +437,139 @@ async def calendar_callback(code: str, db: Session = Depends(get_db)):
         user.google_token = token_json
         db.commit()
         db.refresh(user)
-        access_token = create_access_token(data={"sub": user.username})
+        access_token = create_access_token(subject=user.id, role=user.role.value)
         from fastapi.responses import HTMLResponse
-        content = f"<html><body><script>localStorage.setItem('token', '{access_token}'); window.location.href='/';</script></body></html>"
+        content = f"<html><body><script>localStorage.setItem('access_token', '{access_token}'); window.location.href='/';</script></body></html>"
         return HTMLResponse(content=content)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi: {str(e)}")
 
 @router.get("/calendar/events", tags=["Calendar"])
-async def get_calendar_events(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+async def get_upcoming_events(current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Fetch upcoming events summary"""
     if not current_user.google_token:
         return {"connected": False, "events": []}
-    events, new_token = calendar_service.get_upcoming_events_summary(current_user.google_token)
+    
+    try:
+        events, new_token = calendar_service.get_upcoming_events_summary(current_user.google_token)
+        if new_token:
+            current_user.google_token = new_token
+            db.commit()
+        return {"connected": True, "events": events}
+    except Exception as e:
+        logger.error(f"Error fetching upcoming events: {e}")
+        raise HTTPException(status_code=500, detail="Không thể tải danh sách sự kiện")
+
+
+@router.get("/calendar/events/daily", tags=["Calendar"])
+async def get_daily_events(date: str, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Fetch events for a specific day (YYYY-MM-DD)"""
+    if not current_user.google_token:
+        return {"events": []}
+    
+    try:
+        target_date = py_date.fromisoformat(date) if isinstance(date, str) else date
+        events, new_token = calendar_service.get_events_for_day(current_user.google_token, target_date)
+        if new_token:
+            current_user.google_token = new_token
+            db.commit()
+        return {"date": date, "events": events}
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Định dạng ngày không hợp lệ (YYYY-MM-DD)")
+
+@router.get("/calendar/events/month", tags=["Calendar"])
+async def get_monthly_events(year: int, month: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Fetch all events for a specific month"""
+    if not current_user.google_token:
+        return {"events": []}
+    
+    try:
+        events, new_token = calendar_service.get_events_for_month(current_user.google_token, year, month)
+        if new_token:
+            current_user.google_token = new_token
+            db.commit()
+        return {"year": year, "month": month, "events": events}
+    except Exception as e:
+        logger.error(f"Error fetching monthly events: {e}")
+        raise HTTPException(status_code=500, detail="Không thể tải lịch tháng")
+
+@router.get("/calendar/events/{event_id}", tags=["Calendar"])
+async def get_calendar_event(event_id: str, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if not current_user.google_token:
+        raise HTTPException(status_code=400, detail="Chưa kết nối Google Calendar")
+    
+    event, new_token = calendar_service.get_event_by_id(current_user.google_token, event_id)
     if new_token:
         current_user.google_token = new_token
         db.commit()
-    return {"connected": True, "events": events}
+    
+    if not event:
+        raise HTTPException(status_code=404, detail="Sự kiện không tồn tại")
+    return event
+
+
+@router.post("/calendar/events", tags=["Calendar"])
+async def create_calendar_event(event: schemas.CalendarEventBase, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if not current_user.google_token:
+        raise HTTPException(status_code=400, detail="Chưa kết nối Google Calendar")
+    
+    event_dict = event.model_dump()
+    created, new_token = calendar_service.create_event(current_user.google_token, event_dict)
+    if new_token:
+        current_user.google_token = new_token
+        db.commit()
+    return created
+
+@router.put("/calendar/events/{event_id}", tags=["Calendar"])
+async def update_calendar_event(event_id: str, event: schemas.CalendarEventBase, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if not current_user.google_token:
+        raise HTTPException(status_code=400, detail="Chưa kết nối Google Calendar")
+    
+    event_dict = event.model_dump()
+    updated, new_token = calendar_service.update_event(current_user.google_token, event_id, event_dict)
+    if new_token:
+        current_user.google_token = new_token
+        db.commit()
+    return updated
+
+
+@router.delete("/calendar/events/{event_id}", tags=["Calendar"])
+async def delete_calendar_event(event_id: str, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if not current_user.google_token:
+        raise HTTPException(status_code=400, detail="Chưa kết nối Google Calendar")
+    
+    success, new_token = calendar_service.delete_event(current_user.google_token, event_id)
+    if new_token:
+        current_user.google_token = new_token
+        db.commit()
+    return {"success": success}
+
+# --- Item Management Enhancements ---
+
+@router.patch("/items/{item_id}", response_model=schemas.ClothingItemResponse, tags=["Clothing"])
+async def update_item(item_id: int, update_data: schemas.ClothingItemBase, current_user: models.User = Depends(get_current_user), db: Session = Depends(get_db)):
+    item = db.query(models.ClothingItem).filter(models.ClothingItem.id == item_id, models.ClothingItem.user_id == current_user.id).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Không tìm thấy món đồ")
+    
+    for key, value in update_data.model_dump(exclude_unset=True).items():
+        setattr(item, key, value)
+    
+    # Update type if category changed
+    from app.db.models import ClothingTypeEnum
+    type_map = {
+        "TOP": ClothingTypeEnum.TOP,
+        "BOTTOM": ClothingTypeEnum.BOTTOM,
+        "FOOTWEAR": ClothingTypeEnum.SHOES,
+        "OUTERWEAR": ClothingTypeEnum.OUTERWEAR,
+        "FULL_BODY": ClothingTypeEnum.FULL
+    }
+    if item.category:
+        item.type = type_map.get(item.category.name, item.type)
+
+    db.commit()
+    db.refresh(item)
+    return item
 
 @router.get("/admin/users", response_model=List[schemas.UserResponse], dependencies=[Depends(RoleChecker([models.UserRole.ADMIN]))])
 def list_all_users(db: Session = Depends(get_db)):

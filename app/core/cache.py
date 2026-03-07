@@ -13,6 +13,7 @@ class Cache:
     """
     def __init__(self):
         self.client: Optional[redis.Redis] = None
+        self._memory_cache = {}
         if not settings.ENABLE_CACHING:
             logger.info("Caching is globally disabled via settings.")
             return
@@ -23,30 +24,37 @@ class Cache:
             self.client.ping()
             logger.info("Cache initialized successfully (Redis backend).")
         except Exception as e:
-            logger.warning(f"Cache initialization failed: {e}. Falling back to No-Op cache.")
+            logger.info(f"Cache initialization failed: {e}. Falling back to In-Memory cache.")
             self.client = None
 
     def get(self, key: str) -> Optional[Any]:
-        if not self.client:
+        if not settings.ENABLE_CACHING:
             return None
+        if not self.client:
+            return self._memory_cache.get(key)
         try:
             data = self.client.get(key)
             if data:
                 return json.loads(data)
         except Exception as e:
             logger.error(f"Cache GET error for key {key}: {e}")
+            return self._memory_cache.get(key)
         return None
 
     def set(self, key: str, value: Any, ttl: int = 300) -> bool:
         """Set value with TTL (default 5 minutes)"""
-        if not self.client:
+        if not settings.ENABLE_CACHING:
             return False
+        if not self.client:
+            self._memory_cache[key] = value
+            return True
         try:
             self.client.setex(key, ttl, json.dumps(value))
             return True
         except Exception as e:
             logger.error(f"Cache SET error for key {key}: {e}")
-        return False
+            self._memory_cache[key] = value
+            return True
 
     def delete(self, key: str):
         if not self.client:

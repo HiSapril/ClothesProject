@@ -4,241 +4,282 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Outfit AI - Trợ lý Thời trang Thông minh</title>
+    <title>Outfit AI - Dashboard</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css?v=11">
-    <!-- Ionicons for Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="/static/css/style.css?v=1.3.9">
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
 </head>
 
 <body>
-    <div class="app-container">
-        <div id="demoBanner" class="demo-banner" style="display: none;">
-            <ion-icon name="information-circle-outline"></ion-icon>
-            <span>Môi trường Demo: Dữ liệu có thể được đặt lại định kỳ.</span>
-        </div>
-        <header>
-            <div class="logo">
-                <ion-icon name="shirt-outline" style="vertical-align: middle;"></ion-icon>
+    <div class="minimal-app">
+        <aside class="sidebar">
+            <div class="brand">
+                <ion-icon name="shirt"></ion-icon>
                 <span>Outfit AI</span>
             </div>
-            <div class="user-profile">
-                <div class="avatar">U</div>
-            </div>
-        </header>
-
-        <main>
-            <!-- Left Column: Wardrobe -->
-            <section class="wardrobe-section">
-                <div class="card">
-                    <h2>Tủ đồ cá nhân</h2>
-                    <div class="upload-zone" id="uploadZone">
-                        <input type="file" id="fileInput" hidden accept="image/*" multiple>
-                        <div style="font-size: 40px; color: var(--primary); margin-bottom: 20px;">
-                            <ion-icon name="cloud-upload-outline"></ion-icon>
-                        </div>
-                        <p>Kéo thả hoặc nhấn để thêm ảnh</p>
-                        <p style="font-size: 0.85em; color: var(--text-muted); margin-top: 8px">Hỗ trợ JPG, PNG</p>
-                    </div>
-
-                    <div
-                        style="display: flex; justify-content: space-between; align-items: center; margin-top: 30px; margin-bottom: 25px;">
-                        <h2 style="margin: 0;">Bộ sưu tập</h2>
-                        <button class="clear-all-btn">Xóa tất cả</button>
-                        <div class="filters">
-                            <button class="filter-btn active" data-filter="all">Tất cả</button>
-                            <button class="filter-btn" data-filter="Ao">Áo</button>
-                            <button class="filter-btn" data-filter="Quan">Quần</button>
-                            <button class="filter-btn" data-filter="AoKhoac">Áo khoác</button>
-                            <button class="filter-btn" data-filter="Vay">Váy</button>
-                            <button class="filter-btn" data-filter="Giay">Giày</button>
-                            <button class="filter-btn" data-filter="Dep">Dép</button>
-                            <button class="filter-btn" data-filter="MatKinh">Mắt kính</button>
-                            <button class="filter-btn" data-filter="VongTay">Vòng tay</button>
-                            <button class="filter-btn" data-filter="DongHo">Đồng hồ</button>
-                        </div>
-                    </div>
-                    <div class="gallery-grid" id="galleryGrid">
-                        <!-- Items injected by app.js -->
-                    </div>
+            <nav>
+                <button class="nav-item" onclick="showView('dashboard', event)">
+                    <ion-icon name="grid-outline"></ion-icon> Gợi ý
+                </button>
+                <button class="nav-item" onclick="showView('calendar', event)">
+                    <ion-icon name="calendar-outline"></ion-icon> Lịch
+                </button>
+                <button class="nav-item" onclick="showView('wardrobe', event)">
+                    <ion-icon name="shirt-outline"></ion-icon> Tủ đồ
+                </button>
+                <button class="nav-item" onclick="logout()">
+                    <ion-icon name="log-out-outline"></ion-icon> Đăng xuất
+                </button>
+            </nav>
+            <div class="status-card">
+                <div class="status-dot" id="statusDot"></div>
+                <div class="status-info">
+                    <span id="statusText">Đang tải...</span>
+                    <small id="versionTag">v1.3.0</small>
                 </div>
-            </section>
+            </div>
+        </aside>
 
-            <!-- Right Column: AI Assistant -->
-            <aside class="assistant-section">
-                <div class="card" style="position: sticky; top: 30px;">
-                    <h2>Trợ lý AI</h2>
+        <main class="content">
+            <header class="main-header">
+                <div>
+                    <h1 id="greeting">Xin chào!</h1>
+                    <p class="text-muted">Hôm nay bạn muốn mặc gì?</p>
+                </div>
+                <div id="weatherMini" class="weather-mini">
+                    <!-- Loaded via JS -->
+                </div>
+            </header>
 
-                    <!-- Profile Panel -->
-                    <div class="side-panel">
-                        <span class="panel-title">Hồ sơ cá nhân</span>
-                        <div class="profile-grid">
-                            <div class="form-group">
-                                <label>Giới tính</label>
-                                <select id="userGender">
-                                    <option value="Nam">Nam</option>
-                                    <option value="Nữ">Nữ</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>Tuổi</label>
-                                <input type="number" id="userAge" placeholder="20">
-                            </div>
-                            <div class="form-group">
-                                <label>Chiều cao (cm)</label>
-                                <input type="number" id="userHeight" placeholder="172">
-                            </div>
-                            <div class="form-group">
-                                <label>Cân nặng (kg)</label>
-                                <input type="number" id="userWeight" placeholder="60">
+            <!-- View: Dashboard (Recommendations) -->
+            <div id="view-dashboard" class="view-content">
+                <div class="dashboard-grid">
+                    <div class="card status-card">
+                        <h3><ion-icon name="cloud-outline"></ion-icon> Thời tiết & Bối cảnh</h3>
+                        <div id="weather-info" class="weather-brief">
+                            Đang tải thời tiết...
+                        </div>
+
+                        <div class="context-selector">
+                            <h4>Bối cảnh sự kiện</h4>
+                            <div id="event-list" class="event-chips">
+                                <p class="text-muted">Đang tải sự kiện lịch...</p>
                             </div>
                         </div>
-                        <button onclick="saveProfile()" class="btn-secondary" style="margin-top: 15px;">Cập nhật hồ
-                            sơ</button>
-                        <button onclick="logout()" class="btn-secondary"
-                            style="margin-top: 10px; border-color: rgba(255, 77, 77, 0.3); color: #ff4d4d;">
-                            <ion-icon name="log-out-outline" style="margin-right: 5px;"></ion-icon> Đăng xuất
+                    </div>
+
+                    <div class="card rec-card">
+                        <div class="rec-header">
+                            <h3><ion-icon name="sparkles-outline"></ion-icon> Gợi ý cho bạn</h3>
+                            <div class="strat-selector" style="display:none;">
+                                <button class="strat-btn active" data-val="CONTEXT_AWARE"
+                                    title="Sử dụng thuật toán AI nhận diện ngữ cảnh">AI Thông minh</button>
+                            </div>
+                        </div>
+                        <div class="occasion-selector">
+                            <label>Chọn phong cách mặc:</label>
+                            <div class="occ-btn-group">
+                                <button class="occ-btn active" data-val="casual">Hàng ngày</button>
+                                <button class="occ-btn" data-val="formal">Trang trọng</button>
+                                <button class="occ-btn" data-val="sport">Thể thao</button>
+                            </div>
+                        </div>
+                        <div id="recommendations-container" class="outfits-list">
+                            <div class="empty-state">
+                                <ion-icon name="shirt-outline"></ion-icon>
+                                <p>Nhấn nút bên dưới để nhận gợi ý!</p>
+                            </div>
+                        </div>
+                        <button id="btnRecommend" class="btn btn-primary btn-block">
+                            Gợi ý trang phục ngay
                         </button>
                     </div>
+                </div>
+            </div>
 
-                    <!-- Events Panel -->
-                    <div class="side-panel" style="border-color: rgba(108, 93, 211, 0.2);">
-                        <span class="panel-title">Sự kiện & Bối cảnh</span>
-
-                        <!-- Google Calendar Panel -->
-                        <div id="calendarPanel" class="calendar-panel">
-                            <!-- State: Not Connected -->
-                            <div id="calNotConnected" class="cal-state">
-                                <p
-                                    style="font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-bottom: 12px;">
-                                    Bạn muốn lựa chọn trang phục phù hợp với sự kiện/bối cảnh, hãy kết nối với Google
-                                    Calendar.
-                                </p>
-                                <button onclick="connectCalendar()" class="btn-secondary"
-                                    style="width: 100%; font-size: 13px;">
-                                    <ion-icon name="logo-google" style="margin-right: 8px;"></ion-icon> Kết nối Google
-                                    Calendar
-                                </button>
-                            </div>
-
-                            <!-- State: Connected (Premium Calendar) -->
-                            <div id="calConnected" class="cal-state" style="display: none;">
-                                <div class="calendar-header">
-                                    <span id="calendarMonth">Jan 2026</span>
-                                    <div class="calendar-nav">
-                                        <button onclick="prevMonth()"><ion-icon
-                                                name="chevron-back-outline"></ion-icon></button>
-                                        <button onclick="nextMonth()"><ion-icon
-                                                name="chevron-forward-outline"></ion-icon></button>
-                                    </div>
-                                </div>
-                                <div class="calendar-grid-header">
-                                    <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
-                                </div>
-                                <div id="calendarGrid" class="calendar-grid">
-                                    <!-- Days injected here -->
-                                </div>
-                                <button onclick="openEventModal()" class="add-event-btn">
-                                    <ion-icon name="add-outline"></ion-icon> Thêm sự kiện
-                                </button>
-                            </div>
-                        </div>
-
-                        <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-                            <input type="text" id="eventInput" placeholder="Hoặc nhập thủ công..."
-                                style="flex: 1; padding: 12px; background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm); color: white; font-size: 14px;">
-                            <button onclick="addEvent()"
-                                style="background: var(--primary); color: white; border: none; padding: 0 15px; border-radius: var(--radius-sm); cursor: pointer; display: flex; align-items: center; justify-content: center;">
-                                <ion-icon name="add" style="font-size: 24px;"></ion-icon>
+            <!-- View: Calendar -->
+            <div id="view-calendar" class="view-content" style="display:none;">
+                <div class="card calendar-card">
+                    <div class="calendar-header">
+                        <h3 id="currentMonthYear">Tháng 3, 2026</h3>
+                        <div class="calendar-controls">
+                            <button onclick="prevMonth()" class="btn-icon"><ion-icon
+                                    name="chevron-back-outline"></ion-icon></button>
+                            <button onclick="nextMonth()" class="btn-icon"><ion-icon
+                                    name="chevron-forward-outline"></ion-icon></button>
+                            <button onclick="openEventModal()" class="btn btn-primary btn-sm">
+                                <ion-icon name="add-outline"></ion-icon> Thêm sự kiện
                             </button>
                         </div>
-                        <div id="eventList" class="event-chips">
-                            <!-- Events dynamicly added here -->
-                        </div>
                     </div>
-
-                    <button class="btn-primary" id="recommendBtn">
-                        <ion-icon name="sparkles-outline" style="font-size: 20px;"></ion-icon>
-                        <span>Gợi ý trang phục</span>
-                    </button>
-
-                    <div id="weatherWidget" class="weather-widget">
-                        <h3>Dự báo thời tiết</h3>
-                        <div style="opacity: 0.6; font-size: 14px;">Đang cập nhật vị trí...</div>
+                    <div class="calendar-grid-header">
+                        <div>CN</div>
+                        <div>T2</div>
+                        <div>T3</div>
+                        <div>T4</div>
+                        <div>T5</div>
+                        <div>T6</div>
+                        <div>T7</div>
                     </div>
-
-                    <div id="selectedContext" class="side-panel"
-                        style="display: none; border-color: rgba(108, 93, 211, 0.4); background: rgba(108, 93, 211, 0.05);">
-                        <span class="panel-title" style="color: var(--primary);">Thông tin đã chọn</span>
-                        <div id="selectedContextContent"></div>
-                    </div>
-
-                    <div id="outfitDisplay" class="outfit-display"
-                        style="display: flex; flex-direction: column; gap: 15px;">
-                        <!-- Results injected here -->
-                    </div>
-
-                    <!-- Operational Status -->
-                    <div class="side-panel"
-                        style="margin-top: 20px; border-top: 1px solid var(--border); padding-top: 15px;">
-                        <span class="panel-title" style="font-size: 11px; opacity: 0.5;">Trạng thái hệ thống</span>
-                        <div id="sysStatus" style="font-size: 11px; display: flex; justify-content: space-between;">
-                            <span id="sysReady">Đang kiểm tra...</span>
-                            <span id="sysVersion">v1.2.1</span>
-                        </div>
+                    <div id="calendar-grid" class="calendar-grid">
+                        <!-- Days will be injected here -->
                     </div>
                 </div>
-            </aside>
+            </div>
+
+            <!-- Scoring Guide (Scientific Reference) -->
+            <div id="view-scoring-guide" class="view-content" style="display:block; margin-bottom: 24px;">
+                <div class="card info-card">
+                    <div class="card-header">
+                        <h3><ion-icon name="list-outline"></ion-icon> Hướng dẫn Chấm điểm (Scientific Reference)</h3>
+                        <span class="badge badge-info">Thang điểm 100</span>
+                    </div>
+                    <div class="card-body">
+                        <table class="guide-table">
+                            <thead>
+                                <tr>
+                                    <th>Tiêu chí đánh giá</th>
+                                    <th>Trọng số / Điểm</th>
+                                    <th>Mô tả chi tiết</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><b>Điểm nền (Base)</b></td>
+                                    <td>+20</td>
+                                    <td>Điểm cơ bản định danh một bộ phối đồ.</td>
+                                </tr>
+                                <tr>
+                                    <td><b>Phù hợp bối cảnh</b></td>
+                                    <td>+20 → +30</td>
+                                    <td>Thưởng +20 khi khớp bối cảnh; Thưởng tối đa +30 nếu khớp toàn bộ.</td>
+                                </tr>
+                                <tr>
+                                    <td><b>Phù hợp thời tiết</b></td>
+                                    <td>+20</td>
+                                    <td>Trang phục phù hợp với nhiệt độ hiện tại (mặc ấm/mát).</td>
+                                </tr>
+                                <tr>
+                                    <td><b>Phối màu Harmony</b></td>
+                                    <td>+15</td>
+                                    <td>Thưởng dựa trên độ sáng/tối của trang phục so với thời tiết.</td>
+                                </tr>
+                                <tr>
+                                    <td><b>Chất lượng AI (Gemini)</b></td>
+                                    <td>+15</td>
+                                    <td>Điểm cộng dựa trên độ tin cậy phân loại của Mắt thần Gemini.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Wardrobe Section -->
+            <section class="wardrobe-panel">
+                <div class="section-header">
+                    <h2>Tủ đồ của bạn</h2>
+                    <button class="btn-primary" onclick="triggerUpload()">
+                        <ion-icon name="add-outline"></ion-icon> Thêm đồ mới
+                    </button>
+                    <input type="file" id="fileInput" hidden multiple accept="image/*">
+                </div>
+                <div id="wardrobeGrid" class="wardrobe-grid">
+                    <!-- Items -->
+                </div>
+            </section>
         </main>
     </div>
 
-    <!-- Event Modal -->
+    <!-- Event Modal (Create/Edit) -->
     <div id="eventModal" class="modal">
         <div class="modal-content">
-            <h3 id="modalTitle">Thêm sự kiện</h3>
-            <div class="form-group">
-                <label>Tiêu đề</label>
-                <input type="text" id="eventSummary" placeholder="Đi dự tiệc, Họp công ty...">
+            <div class="modal-header">
+                <h3 id="eventModalTitle">Thêm sự kiện mới</h3>
+                <span class="close" onclick="closeEventModal()">&times;</span>
             </div>
-            <div class="form-group">
-                <label>Thời gian bắt đầu</label>
-                <input type="datetime-local" id="eventStart">
+            <form id="eventForm">
+                <input type="hidden" id="editEventId">
+                <div class="form-group">
+                    <label>Tên sự kiện</label>
+                    <input type="text" id="eventSummary" required placeholder="Ví dụ: Họp team, Đi gym...">
+                </div>
+                <div class="form-group">
+                    <label>Mô tả</label>
+                    <textarea id="eventDescription" rows="2"></textarea>
+                </div>
+                <div class="form-group-row">
+                    <div class="form-group">
+                        <label>Ngày</label>
+                        <input type="date" id="eventDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Giờ</label>
+                        <input type="time" id="eventTime" required>
+                    </div>
+                </div>
+                <button type="submit" id="btnSaveEvent" class="btn btn-primary btn-block">Lưu sự kiện</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Day View Modal -->
+    <div id="dayEventsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="dayViewTitle">Sự kiện ngày 01/01</h3>
+                <span class="close" onclick="closeDayModal()">&times;</span>
             </div>
-            <div class="form-group">
-                <label>Thời gian kết thúc</label>
-                <input type="datetime-local" id="eventEnd">
+            <div id="dayEventsList" class="day-events-list">
+                <!-- Days will be listed here -->
             </div>
-            <div class="modal-actions">
-                <button onclick="closeEventModal()" class="btn-secondary">Hủy</button>
-                <div style="flex: 1"></div>
-                <button id="deleteEventBtn" onclick="deleteCurrentEvent()" class="btn-secondary"
-                    style="border-color: #ff4d4d; color: #ff4d4d; display:none; width: auto; padding: 12px 20px;">Xóa</button>
-                <button id="saveEventBtn" onclick="saveEvent()" class="btn-primary"
-                    style="margin-bottom:0; width: auto; padding: 12px 30px;">Lưu</button>
+            <div class="modal-footer">
+                <button class="btn btn-primary btn-block" onclick="openEventFromDay()">
+                    <ion-icon name="add-outline"></ion-icon> Thêm sự kiện mới
+                </button>
             </div>
         </div>
     </div>
 
-    <!-- Event Selection Modal for Recommendations -->
-    <div id="eventSelectionModal" class="modal">
-        <div class="modal-content" style="max-width: 500px;">
-            <h3>Chọn sự kiện để gợi ý trang phục</h3>
-            <p id="eventSelectionDate" style="color: var(--text-muted); font-size: 0.9em; margin: 8px 0 20px 0;"></p>
-            <div id="eventSelectionList" class="event-selection-list">
-                <!-- Events will be injected here -->
+    <!-- Edit Item Modal -->
+    <div id="editItemModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Chỉnh sửa món đồ</h3>
+                <span class="close" onclick="closeEditModal()">&times;</span>
             </div>
-            <div class="modal-actions" style="margin-top: 20px;">
-                <button onclick="closeEventSelectionModal()" class="btn-secondary" style="width: 100%;">Đóng</button>
-            </div>
+            <form id="editItemForm">
+                <input type="hidden" id="editItemId">
+                <div class="form-group">
+                    <label>Loại quần áo</label>
+                    <select id="editCategory">
+                        <option value="TOP">Áo (Top)</option>
+                        <option value="BOTTOM">Quần (Bottom)</option>
+                        <option value="FOOTWEAR">Giày (Footwear)</option>
+                        <option value="OUTERWEAR">Áo khoác (Outerwear)</option>
+                        <option value="FULL_BODY">Đồ bộ/Váy (Full Body)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Bối cảnh phù hợp</label>
+                    <select id="editOccasion">
+                        <option value="casual">Hàng ngày (Casual)</option>
+                        <option value="formal">Trang trọng (Formal)</option>
+                        <option value="sport">Thể thao (Sport)</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary btn-block">Cập nhật</button>
+            </form>
         </div>
     </div>
 
-    <!-- Notification Toast -->
     <div id="toast" class="toast"></div>
 
-    <script type="module" src="/static/js/app.js"></script>
+    <script type="module" src="/static/js/app.js?v=1.4.2"></script>
 </body>
 
 </html>

@@ -250,11 +250,11 @@
     </div>
 
     <script type="module">
-        import { api } from './js/api.js';
+        import { api } from '/static/js/api.js';
 
         let currentMode = 'login';
 
-        window.switchTab = function (mode) {
+        function switchTab(mode) {
             currentMode = mode;
             const tabs = document.querySelectorAll('.tab');
             const emailGroup = document.getElementById('email-group');
@@ -277,7 +277,7 @@
             }
         }
 
-        window.handleAuth = async function (event) {
+        async function handleAuth(event) {
             event.preventDefault();
             const errorMsg = document.getElementById('error-msg');
             errorMsg.style.display = 'none';
@@ -293,7 +293,9 @@
 
                     // Auto login after register
                     currentMode = 'login';
-                    await window.handleAuth(event);
+                    const loginEvent = new Event('submit');
+                    loginEvent.preventDefault = () => { };
+                    await handleAuth(loginEvent);
                 } else {
                     const res = await api.login(username, password);
                     if (!res.success) throw new Error(res.message);
@@ -305,16 +307,23 @@
             }
         }
 
-        window.loginWithGoogle = function () {
+        function loginWithGoogle() {
             window.location.href = '/api/v1/calendar/login';
         }
 
-        // Check if already logged in
-        document.addEventListener('DOMContentLoaded', () => {
-            if (localStorage.getItem('access_token')) {
-                window.location.href = '/';
-            }
+        // Attach event listeners properly after module loads
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const mode = tab.innerText.includes('nhập') ? 'login' : 'register';
+                switchTab(mode);
+            });
         });
+
+        document.getElementById('auth-form').addEventListener('submit', handleAuth);
+        document.querySelector('.btn-google').addEventListener('click', loginWithGoogle);
+
+        // Notice: We removed the blind redirect to '/' if access_token exists to prevent infinite loops.
+        // The dashboard must authenticate the token on load.
     </script>
 </body>
 

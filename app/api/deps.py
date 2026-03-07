@@ -39,7 +39,11 @@ def get_current_user(
     except JWTError:
         raise credentials_exception
         
-    user = db.query(models.User).filter(models.User.id == int(user_id)).first()
+    try:
+        user = db.query(models.User).filter(models.User.id == int(user_id)).first()
+    except (ValueError, TypeError):
+        logger.error(f"Invalid user_id in token: {user_id}")
+        raise credentials_exception
     if user is None:
         raise credentials_exception
     return user

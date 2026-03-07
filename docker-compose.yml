@@ -2,7 +2,6 @@ services:
   db:
     image: postgres:15-alpine
     container_name: outfit_ai_db
-    profiles: [ "dev", "prod" ]
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
@@ -19,7 +18,6 @@ services:
   redis:
     image: redis:7-alpine
     container_name: outfit_ai_redis
-    profiles: [ "dev", "prod" ]
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
@@ -32,7 +30,6 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: outfit_ai_api
-    profiles: [ "dev", "prod" ]
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-clothes_db}
       - REDIS_URL=redis://redis:6379/0
@@ -57,7 +54,6 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: outfit_ai_worker
-    profiles: [ "dev", "prod" ]
     command: celery -A app.core.celery_app worker --loglevel=info
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-clothes_db}

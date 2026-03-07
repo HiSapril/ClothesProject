@@ -1,6 +1,6 @@
 import logging
 from enum import Enum
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from app.domain.fashion_taxonomy import ClassificationStatus
 
 logger = logging.getLogger("app")
@@ -50,23 +50,85 @@ class DecisionEngine:
         }
 
     @classmethod
-    def get_recommendation_explanation(cls, items_count: int, weather: Dict, occasion: str) -> str:
+    def get_recommendation_explanation(cls, items: List[Any], weather: Dict, occasion: str, score: int, breakdown: List[str], event_name: str = None) -> str:
         """
-        Generates deterministic human-readable explanations (XAI-Lite).
+        Generates dynamic, item-aware explanations (XAI-Lite) using DeepSeek LLM if available,
+        falling back to deterministic reasoning if the API fails or is disabled.
         """
         temp = weather.get("temp", 25)
         condition = weather.get("condition", "Nắng")
+        item_names = [getattr(i, 'category_label', 'đồ') for i in items]
         
-        base = f"Dựa trên thời tiết {condition} ({temp}°C) và sự kiện {occasion}: "
+        # Score from algorithm: max possible score is exactly 100 points.
+        suitability_pct = min(100, max(0, round(score)))
         
-        if temp < 18:
-            action = "Chúng tôi đã chọn thêm một lớp áo khoác để giữ ấm cho bạn."
-        elif temp > 28:
-            action = "Chúng tôi ưu tiên các chất liệu thoáng mát và phối đồ đơn giản tránh nóng."
+        # Base deterministic explanation (Fallback)
+        event_ctx = f" sự kiện '{event_name}'" if event_name else ""
+        base = f"[Độ phù hợp: {suitability_pct}/100] Dựa trên tiết trời {condition} ({temp}°C) và bối cảnh {occasion}{event_ctx}: "
+        if len(items) >= 3:
+            action = f"Hệ thống đã phối {item_names[0]} với {item_names[1]} và {item_names[2]}."
         else:
-            action = "Đây là sự phối hợp lý tưởng cho tiết trời mát mẻ hôm nay."
+            action = f"Hệ thống gợi ý lẻ {', '.join(item_names)} vì tủ đồ chưa đủ bộ."
 
-        return f"{base}{action}"
+        justification = ""
+        if breakdown:
+            core_reasons = [b for b in breakdown if "+" in b or "-" in b]
+            if core_reasons:
+                justification = " Lý do: " + "; ".join(core_reasons[:2])
+                
+        fallback_text = f"{base}{action}{justification}"
+
+        # Attempt to use DeepSeek LLM
+        from app.core.config import settings
+        import requests
+        
+        # Verify the key is not default/missing
+        if not settings.DEEPSEEK_API_KEY or "your_" in settings.DEEPSEEK_API_KEY:
+            return fallback_text
+
+        try:
+            url = "https://openrouter.ai/api/v1/chat/completions"
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {settings.DEEPSEEK_API_KEY}",
+                "HTTP-Referer": "http://localhost:8000",
+                "X-Title": "OutfitAI"
+            }
+            
+            event_line = f"Tôi sẽ tham gia sự kiện '{event_name}'.\n" if event_name else ""
+            prompt = f"Bối cảnh: {occasion}. Thời tiết: {condition}, {temp}°C.\n" \
+                     f"{event_line}" \
+                     f"Tôi tính mặc bộ đồ gồm: {', '.join(item_names)}.\n" \
+                     f"Thuật toán AI đánh giá bộ đồ này đạt {suitability_pct}/100 điểm phù hợp.\n" \
+                     f"Hãy đóng vai Stylist cá nhân AI 10 năm kinh nghiệm.\n" \
+                     f"Viết 2-3 câu bằng tiếng Việt để: (1) Giải thích vì sao bộ đồ này hợp với thời tiết và bối cảnh{' và sự kiện' if event_name else ''}. (2) Đề xuất thêm 1 phụ kiện nếu muốn. Không dùng ngoặc kép."
+            
+            payload = {
+                "model": "deepseek/deepseek-chat",
+                "messages": [
+                    {"role": "system", "content": "You are an expert Vietnamese personal stylist AI for an academic research project. Explain outfit recommendations in 2-3 friendly Vietnamese sentences, referencing weather, occasion, and event context if provided."},
+                    {"role": "user", "content": prompt}
+                ],
+                "temperature": 0.6,
+                "max_tokens": 200
+            }
+            
+            # Use a short timeout so the UI doesn't hang if DeepSeek is slow/down (max 3 seconds)
+            response = requests.post(url, headers=headers, json=payload, timeout=3.0)
+            
+            if response.status_code == 200:
+                data = response.json()
+                if "choices" in data and len(data["choices"]) > 0:
+                    ai_text = data["choices"][0]["message"]["content"].strip()
+                    ai_text = ai_text.replace('"', '').replace("'", "")
+                    return f"🎯 Độ phù hợp: {suitability_pct}/100 | ✨ Stylist AI: {ai_text}"
+            else:
+                logger.warning(f"DeepSeek API returned {response.status_code}: {response.text}")
+                
+        except (requests.exceptions.RequestException, Exception) as e:
+            logger.warning(f"DeepSeek API Call failed: {e}. Using deterministic fallback.")
+            
+        return fallback_text
 
     @classmethod
     def validate_outfit_safety(cls, items: List[Any], weather: Dict) -> Dict[str, Any]:

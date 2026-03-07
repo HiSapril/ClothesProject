@@ -37,23 +37,28 @@ LOGGING_CONFIG = {
     "loggers": {
         "app": {
             "handlers": ["console"],
-            "level": "INFO",
+            "level": "WARNING",
             "propagate": False,
         },
         "uvicorn": {
             "handlers": ["console"],
-            "level": "INFO",
+            "level": "WARNING",
+            "propagate": False,
+        },
+        "uvicorn.access": {
+            "handlers": ["console"],
+            "level": "WARNING",
             "propagate": False,
         },
         "celery": {
             "handlers": ["console"],
-            "level": "INFO",
+            "level": "ERROR",
             "propagate": False,
         },
     },
     "root": {
         "handlers": ["console"],
-        "level": "INFO",
+        "level": "WARNING",
     },
 }
 

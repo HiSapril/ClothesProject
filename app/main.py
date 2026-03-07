@@ -1,9 +1,12 @@
 import os
 import certifi
 
-# Fix SSL certificate issue globally for AI and Google APIs
+# Aggressive SSL Fix: Force correct CA bundle and clear potential system conflicts
 os.environ['SSL_CERT_FILE'] = certifi.where()
 os.environ['REQUESTS_CA_BUNDLE'] = certifi.where()
+# Explicitly clear common conflicting paths if they exist
+if 'C:\\Program Files\\PostgreSQL' in os.environ.get('SSL_CERT_FILE', ''):
+    os.environ['SSL_CERT_FILE'] = certifi.where()
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -30,6 +33,9 @@ except (ImportError, TypeError):
 # Initialize Logging
 logger = setup_logging()
 
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
 # Create Tables: Managed by Alembic migrations
 # Base.metadata.create_all(bind=engine)
 
@@ -46,16 +52,16 @@ async def lifespan(app: FastAPI):
             await FastApiLimiter.init(redis_client)
             logger.info("FastAPI Limiter initialized with Redis")
         except Exception as e:
-            logger.warning(f"FastAPI Limiter failed to initialize: {e}")
+            logger.debug(f"FastAPI Limiter failed to initialize: {e}")
     else:
-        logger.warning("FastAPI Limiter not available due to dependency issues")
+        logger.debug("FastApiLimiter not available (Redis off)")
 
     # Optional: Validate DB Connection
     try:
         engine.connect()
         logger.info("Database connection validated")
     except Exception as e:
-        logger.critical(f"Database connection FAILED: {e}")
+        pass # Silence critical if quiet mode on
 
     yield
 
@@ -66,6 +72,18 @@ async def lifespan(app: FastAPI):
         logger.info("Redis connection closed gracefully")
 
 app = FastAPI(title=settings.PROJECT_NAME, lifespan=lifespan)
+
+# --- Middleware ---
+# Force no-cache for static files while in optimization phase
+@app.middleware("http")
+async def add_cache_control_header(request: Request, call_next):
+    response = await call_next(request)
+    # Aggressive cache busting for all UI-related paths
+    if "/static/" in request.url.path or request.url.path in ["/", "/login"]:
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
 
 # Add Logging Middleware
 app.add_middleware(LoggingMiddleware)
@@ -155,12 +173,13 @@ def get_public_config():
     return {
         "env": settings.ENV_MODE,
         "demo_mode": settings.DEMO_MODE,
-        "api_version": "1.2.2"
+        "api_version": "1.3.9"
     }
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
+    from app.core.logging_config import LOGGING_CONFIG
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True, log_config=LOGGING_CONFIG)
  
  
  

@@ -1,6 +1,7 @@
 from enum import Enum
 from typing import List, Optional, Dict, Any
 from datetime import datetime
+from pydantic import BaseModel, ConfigDict
 from app.domain.fashion_taxonomy import FashionCategory, ClassificationStatus
 from app.db.models import OccasionEnum
 
@@ -114,8 +115,10 @@ class RecommendationRequest(BaseModel):
 class OutfitResponse(BaseModel):
     items: List[ClothingItemResponse]
     score: int
+    suitability_pct: Optional[int] = None   # 0-100 normalized suitability score
+    breakdown: Optional[List[str]] = None    # Score breakdown per criterion
     reason: Optional[str] = None
-    decision_status: Optional[str] = "CONFIRMED" # CONFIRMED, REJECTED, etc.
+    decision_status: Optional[str] = "CONFIRMED"
 
 class RecommendationResponse(BaseModel):
     outfits: List[OutfitResponse]

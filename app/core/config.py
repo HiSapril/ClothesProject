@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     
     # External APIs
     OPENWEATHER_API_KEY: str = "your_openweather_api_key_here"
+    DEEPSEEK_API_KEY: str = os.getenv("DEEPSEEK_API_KEY", "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")
     
     # Celery
     CELERY_BROKER_URL: str = "redis://localhost:6379/0"

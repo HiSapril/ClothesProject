@@ -31,6 +31,12 @@ Hệ thống được thiết kế theo kiến trúc phân tầng (Layered Archi
 - **Quy trình suy luận**: Ảnh sau khi tiền xử lý được đưa qua mô hình để lấy xác suất lớp (class probabilities).
 - **Ngưỡng tin cậy (Confidence Thresholds)**: Hệ thống áp dụng các ngưỡng động để phân loại kết quả thành `CONFIRMED` (>85%) hoặc `LOW_CONFIDENCE` (50-85%).
 
+**Phân tích Thực nghiệm: Vai trò của Việc tách nền (Background Removal)**:
+Trong các nghiên cứu về Thị giác máy tính (Computer Vision), việc tách nền đóng vai trò là một bộ lọc "Tăng tỷ lệ Tín hiệu trên Nhiễu" (Signal-to-Noise Ratio). 
+1. **Lợi ích**: Giúp mô hình tập trung hoàn toàn vào các đặc trưng của vật phẩm (vải, form dáng, màu sắc) mà không bị ảnh hưởng bởi môi trường xung quanh (phòng ngủ, móc treo). Điều này giúp ổn định hóa accuracy khi triển khai thực tế.
+2. **Rủi ro (Over-segmentation)**: Nếu thuật toán tách nền (rembg) bị lỗi và lược bỏ các bộ phận quan trọng (như ống tay áo), mô hình AI có thể bị đánh lừa (ví dụ: nhầm Long-sleeve thành T-shirt). 
+3. **Giải pháp trong Outfit AI**: Tầng Quyết định (Decision Layer) sẽ bắt được các trường hợp này thông qua chỉ số Confidence thấp, từ đó yêu cầu người dùng xác nhận lại hoặc chụp lại ảnh.
+
 **Lưu ý**: Mô hình AI chỉ đóng vai trò phân loại (classifier). Việc ra quyết định cuối cùng được chuyển sang tầng Decision Layer để đảm bảo tính an toàn và minh bạch.
 
 ---

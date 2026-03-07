@@ -70,33 +70,53 @@ class CalendarService:
         service, new_token = self.get_calendar_service(token_json)
         if not service:
             return [], None
-            
-        now = datetime.datetime.utcnow().isoformat() + 'Z'
+        
+        # Use start of TODAY (UTC) so events created for today are always included
+        today_start = datetime.datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        time_min = today_start.isoformat() + 'Z'
         events_result = service.events().list(
-            calendarId='primary', timeMin=now,
+            calendarId='primary', timeMin=time_min,
             maxResults=max_results, singleEvents=True,
             orderBy='startTime'
         ).execute()
         return events_result.get('items', []), new_token
 
-    def get_upcoming_events_summary(self, token_json: str, max_results=5):
+    def get_upcoming_events_summary(self, token_json: str, max_results=10):
         """Fetch formatted summary of upcoming events"""
         try:
             events, new_token = self.get_upcoming_events(token_json, max_results=max_results)
             summary_list = []
             
             for event in events:
-                start = event['start'].get('dateTime', event['start'].get('date'))
+                start_full = event['start'].get('dateTime', event['start'].get('date'))
+                # Extract date (YYYY-MM-DD -> DD/MM)
+                date_part = start_full.split('T')[0]
+                try:
+                    dt_obj = datetime.date.fromisoformat(date_part)
+                    formatted_date = dt_obj.strftime("%d/%m")
+                except:
+                    formatted_date = ""
+
                 time_part = "Cả ngày"
-                if 'T' in start:
-                    time_part = start.split('T')[1][:5]
+                if 'T' in start_full:
+                    # Handle timezone offset if present (+07:00)
+                    time_part = start_full.split('T')[1][:5]
                     
                 summary_list.append({
+                    "id": event.get('id'),
                     "title": event.get('summary', 'Sự kiện không tên'),
+                    "date": formatted_date,
                     "time": time_part,
                     "occasion": self.map_event_to_occasion(event.get('summary', ''))
                 })
-            return summary_list, new_token
+            # Deduplicate by event ID before returning
+            seen_ids = set()
+            unique_list = []
+            for ev in summary_list:
+                if ev['id'] not in seen_ids:
+                    seen_ids.add(ev['id'])
+                    unique_list.append(ev)
+            return unique_list, new_token
         except Exception as e:
             print(f"DEBUG: Error in events summary: {e}")
             return [], None
@@ -117,14 +137,45 @@ class CalendarService:
         if not service:
             return [], None
             
+        # Ensure times have Z suffix for Google API if they don't have offset
+        t_min = start_time.isoformat()
+        if 'Z' not in t_min and '+' not in t_min: t_min += 'Z'
+        t_max = end_time.isoformat()
+        if 'Z' not in t_max and '+' not in t_max: t_max += 'Z'
+
         events_result = service.events().list(
             calendarId='primary', 
-            timeMin=start_time.isoformat() + 'Z',
-            timeMax=end_time.isoformat() + 'Z',
+            timeMin=t_min,
+            timeMax=t_max,
             singleEvents=True,
             orderBy='startTime'
         ).execute()
         return events_result.get('items', []), new_token
+
+    def get_events_for_month(self, token_json: str, year: int, month: int):
+        """Fetch all events for a specific month"""
+        # Start of month
+        import calendar
+        start_time = datetime.datetime(year, month, 1, 0, 0, 0)
+        # End of month
+        last_day = calendar.monthrange(year, month)[1]
+        end_time = datetime.datetime(year, month, last_day, 23, 59, 59)
+        
+        events, new_token = self.get_events_for_range(token_json, start_time, end_time)
+        
+        formatted_events = []
+        for event in events:
+            start_str = event['start'].get('dateTime', event['start'].get('date'))
+            date_only = start_str.split('T')[0]
+            
+            formatted_events.append({
+                'id': event['id'],
+                'summary': event.get('summary', 'Sự kiện không tên'),
+                'date': date_only,
+                'time': start_str.split('T')[1][:5] if 'T' in start_str else "Cả ngày",
+                'occasion': self.map_event_to_occasion(event.get('summary', ''))
+            })
+        return formatted_events, new_token
 
     def get_events_for_day(self, token_json: str, target_date: datetime.date):
         """

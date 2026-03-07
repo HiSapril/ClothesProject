@@ -30,11 +30,16 @@ IMAGENET_TO_FASHION: Dict[str, FashionCategory] = {
     
     # Bottoms
     "jean": FashionCategory.BOTTOM,
-    "drilling": FashionCategory.BOTTOM, # Often mapped to jeans/pants
+    "drilling": FashionCategory.BOTTOM,
     "skirt": FashionCategory.BOTTOM,
     "short": FashionCategory.BOTTOM,
     "trouser": FashionCategory.BOTTOM,
     "pant": FashionCategory.BOTTOM,
+    "miniskirt": FashionCategory.BOTTOM,
+    "sweatpants": FashionCategory.BOTTOM,
+    "pajama": FashionCategory.BOTTOM,
+    "cargo": FashionCategory.BOTTOM,
+    "legging": FashionCategory.BOTTOM,
     
     # Outerwear
     "jacket": FashionCategory.OUTERWEAR,

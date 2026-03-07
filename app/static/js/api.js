@@ -15,7 +15,6 @@ class ApiClient {
     async request(endpoint, options = {}) {
         const url = `${API_BASE_URL}${endpoint}`;
 
-        // Add Authorization header if token exists
         if (this.accessToken) {
             options.headers = {
                 ...options.headers,
@@ -26,11 +25,10 @@ class ApiClient {
         try {
             const response = await fetch(url, options);
 
-            // Handle 401 Unauthorized (Token expired)
             if (response.status === 401 && this.refreshToken) {
                 const refreshed = await this.refreshTokens();
                 if (refreshed) {
-                    return this.request(endpoint, options); // Retry with new token
+                    return this.request(endpoint, options);
                 }
             }
 
@@ -38,7 +36,6 @@ class ApiClient {
 
             if (!response.ok) {
                 let errorMessage = data.message || 'An unexpected error occurred';
-
                 if (response.status === 429) {
                     errorMessage = `Giới hạn yêu cầu đã vượt mức. Vui lòng thử lại sau ${data.retry_after || 'ít phút'}.`;
                 } else if (response.status === 503) {
@@ -49,8 +46,7 @@ class ApiClient {
                     success: false,
                     error_code: data.error_code || `HTTP_${response.status}`,
                     message: errorMessage,
-                    request_id: data.request_id,
-                    retry_after: data.retry_after
+                    request_id: data.request_id
                 };
             }
 
@@ -59,14 +55,12 @@ class ApiClient {
             return {
                 success: false,
                 error_code: 'NETWORK_ERROR',
-                message: 'Cannot connect to the backend server. Please check your internet connection and ensure the server is running.'
+                message: 'Cannot connect to the backend server.'
             };
         }
     }
 
     async refreshTokens() {
-        // Implementation of refresh flow would go here
-        // For the demo, we'll just redirect to login if access token fails
         this.logout();
         return false;
     }
@@ -133,6 +127,69 @@ class ApiClient {
 
     async getMyItems() {
         return this.request('/items/me');
+    }
+
+    async updateItem(id, data) {
+        return this.request(`/items/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+    }
+
+    async updateProfile(profileData) {
+        return this.request('/users/me/profile', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(profileData)
+        });
+    }
+
+    async deleteItem(itemId) {
+        return this.request(`/items/${itemId}`, {
+            method: 'DELETE'
+        });
+    }
+
+    async getWeather(lat, lon) {
+        return this.request(`/weather?lat=${lat}&lon=${lon}`);
+    }
+
+    async getUpcomingEvents() {
+        // Cache-bust: always fetch fresh event list, never use browser cache
+        return this.request(`/calendar/events?_t=${Date.now()}`, {
+            cache: 'no-store'
+        });
+    }
+
+    async getDailyEvents(date) {
+        return this.request(`/calendar/events/daily?date=${date}`);
+    }
+
+    async getMonthlyEvents(year, month) {
+        return this.request(`/calendar/events/month?year=${year}&month=${month}`);
+    }
+
+    async createEvent(eventData) {
+        return this.request('/calendar/events', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(eventData)
+        });
+    }
+
+    async deleteEvent(eventId) {
+        return this.request(`/calendar/events/${eventId}`, {
+            method: 'DELETE'
+        });
+    }
+
+    async updateEvent(eventId, eventData) {
+        return this.request(`/calendar/events/${eventId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(eventData)
+        });
     }
 }
 

@@ -28,11 +28,14 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             # 4. Add Request ID to response headers
             response.headers["X-Request-ID"] = request_id
             
-            process_time = (time.time() - start_time) * 1000
-            logger.info(
-                f"Completed {request.method} {request.url.path} - "
-                f"Status: {response.status_code} - Duration: {process_time:.2f}ms"
-            )
+            # SILENCE: Only log if it's an error or a state-changing POST/DELETE request
+            # This drastically reduces terminal noise during polling
+            if response.status_code >= 400 or request.method in ["POST", "DELETE", "PUT"]:
+                process_time = (time.time() - start_time) * 1000
+                logger.info(
+                    f"Completed {request.method} {request.url.path} - "
+                    f"Status: {response.status_code} - Duration: {process_time:.2f}ms"
+                )
             return response
             
         except Exception as e:

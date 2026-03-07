@@ -10,15 +10,15 @@ logger = logging.getLogger("app")
 class RecommendationEngine:
     # --- Scoring Constants ---
     MATCH_BASE_SCORE = 20
-    WEATHER_MATCH_BONUS = 15
-    OCCASION_MATCH_BONUS = 15
-    COLOR_HARMONY_BONUS = 10
+    WEATHER_MATCH_BONUS = 20
+    OCCASION_MATCH_BONUS = 20
+    COLOR_HARMONY_BONUS = 15
     LOW_CONFIDENCE_PENALTY = -30
     UNKNOWN_CATEGORY_PENALTY = -50
 
     def recommend(self, db: Session, user_id: int, weather: Dict, occasion: OccasionEnum, 
                   strategy: str = "CONTEXT_AWARE", decision_layer_enabled: bool = True,
-                  context_override: Dict = None) -> List[Dict]:
+                  context_override: Dict = None, event_name: str = None) -> List[Dict]:
         """
         Deterministic Recommendation Engine with Research Support.
         """
@@ -80,16 +80,32 @@ class RecommendationEngine:
                             })
         else:
             # CONTEXT_AWARE Logic
-            for top in inventory[FashionCategory.TOP]:
-                for bottom in inventory[FashionCategory.BOTTOM]:
-                    for shoe in inventory[FashionCategory.FOOTWEAR]:
-                        items = [top, bottom, shoe]
-                        potential_outerwear = inventory[FashionCategory.OUTERWEAR]
-                        if temp < 18 and potential_outerwear:
-                            for outer in potential_outerwear:
-                                candidates.append(self._evaluate_outfit(items + [outer], weather, occasion, user))
-                        else:
-                            candidates.append(self._evaluate_outfit(items, weather, occasion, user))
+            tops = inventory[FashionCategory.TOP]
+            bottoms = inventory[FashionCategory.BOTTOM]
+            shoes = inventory[FashionCategory.FOOTWEAR]
+            
+            if tops and bottoms and shoes:
+                for top in tops:
+                    for bottom in bottoms:
+                        for shoe in shoes:
+                            items = [top, bottom, shoe]
+                            potential_outerwear = inventory[FashionCategory.OUTERWEAR]
+                            if temp < 18 and potential_outerwear:
+                                for outer in potential_outerwear:
+                                    candidates.append(self._evaluate_outfit(items + [outer], weather, occasion, user))
+                            else:
+                                candidates.append(self._evaluate_outfit(items, weather, occasion, user))
+            else:
+                # RELAXED: If full outfit not possible, suggest pairs or individuals
+                # Research: Academic users prefer knowing WHY they have few options
+                logger.warning(f"Full outfit not possible for user {user_id}. Falling back to partials.")
+                all_possible = tops + bottoms + shoes + inventory[FashionCategory.OUTERWEAR] + inventory[FashionCategory.FULL_BODY]
+                for item in all_possible[:10]:
+                    candidates.append({
+                        "items": [item],
+                        "score": 10,
+                        "reason": f"Món đồ lẻ gợi ý vì bạn chưa có đủ bộ phối đầy đủ (thiếu {'Giày' if not shoes else 'Quần' if not bottoms else 'Áo'})."
+                    })
 
         # 2. Ranking
         candidates.sort(key=lambda x: (-x["score"], tuple(sorted([i.id for i in x["items"]]))))
@@ -97,19 +113,23 @@ class RecommendationEngine:
         # 3. Decision Layer Application (if enabled)
         from app.services.decision_engine import DecisionEngine
         final_recs = []
-        seen_items = set()
+        used_item_ids = set() # Track INDIVIDUAL items to prevent reuse
+
+        # Sort again by score primarily
+        candidates.sort(key=lambda x: -x["score"])
 
         for c in candidates:
-            item_tuple = tuple(sorted([i.id for i in c["items"]]))
-            if item_tuple in seen_items: continue
+            # Check if ANY item in this outfit has already been used in a higher-ranked outfit
+            current_item_ids = set(i.id for i in c["items"])
+            if not current_item_ids.isdisjoint(used_item_ids):
+                continue
             
             decision_status = "CONFIRMED"
             if decision_layer_enabled:
                 validation = DecisionEngine.validate_outfit_safety(c["items"], weather)
                 decision_status = validation["status"]
                 if decision_status == "REJECTED":
-                    c["reason"] = f"REJECTED by Decision Layer: {validation['reason']}"
-                    c["score"] = -999 # Sink rejected outfits
+                    continue # Skip rejected for research clarity
                 
                 # Check for low-confidence items
                 for item in c["items"]:
@@ -119,8 +139,37 @@ class RecommendationEngine:
 
             c["decision_status"] = decision_status
             final_recs.append(c)
-            seen_items.add(item_tuple)
-            if len(final_recs) >= 5: break
+            used_item_ids.update(current_item_ids) # Mark these items as consumed
+            
+            # Change: Pick 4 top, then stop to pick 1 wildcard later
+            if len(final_recs) >= 4: break
+
+        # 4. Wildcard Selection: Find the LOWEST scoring unique-item outfit for baseline comparison
+        if len(final_recs) < 5:
+            # Sort candidates by score ASCENDING this time
+            candidates_asc = sorted(candidates, key=lambda x: x["score"])
+            for c in candidates_asc:
+                current_item_ids = set(i.id for i in c["items"])
+                if current_item_ids.isdisjoint(used_item_ids):
+                    # Found a unique low-scoring outfit
+                    decision_status = "CONFIRMED"
+                    if decision_layer_enabled:
+                        validation = DecisionEngine.validate_outfit_safety(c["items"], weather)
+                        if validation["status"] == "REJECTED": continue
+                    
+                    c["decision_status"] = "CONFIRMED"
+                    c["reason"] = "WILDCARD: Low Suitability comparison"
+                    final_recs.append(c)
+                    break # Just 1 wildcard
+
+
+        # Only generate LLM explanations for the top selected outfits (massive speedup)
+        for c in final_recs:
+            if "explanations" in c and "reason" not in c:
+                c["reason"] = DecisionEngine.get_recommendation_explanation(
+                    c["items"], weather, occasion.value, c["score"], c["explanations"],
+                    event_name=event_name
+                )
 
         # 4. Cache (only for valid CONTEXT_AWARE results)
         if strategy == "CONTEXT_AWARE" and not context_override:
@@ -129,39 +178,97 @@ class RecommendationEngine:
                 "score": r["score"],
                 "reason": r["reason"],
                 "decision_status": r["decision_status"]
-            } for r in final_recs[:3]]
+            } for r in final_recs[:5]]
             cache.set(cache_key, serializable_results, ttl=300)
 
-        return final_recs[:3]
+        return final_recs[:5]
+
+    def _get_color_brightness(self, hex_color: str) -> float:
+        """Returns 0 (very dark) to 1 (very bright) from a hex color string."""
+        try:
+            hx = hex_color.lstrip('#')
+            if len(hx) != 6: return 0.5
+            r, g, b = int(hx[0:2], 16), int(hx[2:4], 16), int(hx[4:6], 16)
+            return (0.299 * r + 0.587 * g + 0.114 * b) / 255.0
+        except:
+            return 0.5
 
     def _evaluate_outfit(self, items: List[ClothingItem], weather: Dict, occasion: OccasionEnum, user=None) -> Dict:
         score = self.MATCH_BASE_SCORE
         explanations = [f"Base score: +{self.MATCH_BASE_SCORE}"]
         temp = weather.get("temp", 25)
 
-        occ_matches = sum(1 for item in items if item.occasion == occasion)
-        if occ_matches > 0:
-            bonus = self.OCCASION_MATCH_BONUS * (occ_matches / len(items))
-            score += bonus
-            explanations.append(f"Occasion match bonus: +{bonus:.1f}")
+        # --- 1. Occasion Match (Max +30) ---
+        match_count = sum(1 for item in items if item.occasion == occasion)
+        if match_count > 0:
+            # Distributed match score (Total +20)
+            distributed_score = (match_count / len(items)) * self.OCCASION_MATCH_BONUS
+            score += distributed_score
+            explanations.append(f"Occasion match ({match_count}/{len(items)}): +{round(distributed_score)}")
+
+            # Full match bonus (Max +10)
+            if match_count == len(items):
+                score += 10
+                explanations.append("Full occasion match bonus: +10")
         else:
             score -= 10
-            explanations.append("Occasion mismatch penalty: -10")
+            explanations.append("Occasion mismatch: -10")
 
+        # --- 2. Weather Suitability (Max +20) ---
         if temp < 18:
             has_outerwear = any(i.category == FashionCategory.OUTERWEAR for i in items)
             if has_outerwear:
                 score += self.WEATHER_MATCH_BONUS
-                explanations.append(f"Cold weather protection: +{self.WEATHER_MATCH_BONUS}")
+                explanations.append(f"Cold weather + outerwear: +{self.WEATHER_MATCH_BONUS}")
             else:
                 score -= 20
-                explanations.append("Lack of outerwear in cold weather: -20")
+                explanations.append("No outerwear in cold weather: -20")
         elif temp > 28:
             has_heavy = any("coat" in (i.category_label or "").lower() or "jacket" in (i.category_label or "").lower() for i in items)
             if has_heavy:
                 score -= 15
                 explanations.append("Too many layers for hot weather: -15")
+            else:
+                # Add weather bonus for appropriate layering in heat
+                score += self.WEATHER_MATCH_BONUS
+                explanations.append(f"Ideal layers for hot weather: +{self.WEATHER_MATCH_BONUS}")
+
+        # --- 3. Color harmony (Max +15) ---
+        color_bonus = 0
+        items_with_color = [i for i in items if i.main_color_hex]
+        if items_with_color:
+            if temp > 25:
+                # Light colors
+                light_colors_count = sum(1 for i in items_with_color if self._get_color_brightness(i.main_color_hex) > 0.6)
+                color_bonus = (light_colors_count / len(items_with_color)) * 15
+                explanations.append(f"Cool light colors: +{color_bonus:.1f}")
+            else:
+                # Deep/warm colors
+                dark_colors_count = sum(1 for i in items_with_color if self._get_color_brightness(i.main_color_hex) < 0.4)
+                color_bonus = (dark_colors_count / len(items_with_color)) * 15
+                explanations.append(f"Deep tones for warmth: +{color_bonus:.1f}")
+        score += color_bonus
+
+        # --- 4. AI Confidence Quality (Max +15) ---
+        confirmed_count = sum(1 for i in items if i.classification_status == ClassificationStatus.CONFIRMED)
+        if confirmed_count > 0:
+            # Base bonus for confirmation (max +10)
+            base_conf_bonus = (confirmed_count / len(items)) * 10
+            
+            # Granular bonus: use the actual 0-1.0 confidence score from Gemini (max +5)
+            extra_granular = sum((i.confidence_score or 0.0) for i in items if i.classification_status == ClassificationStatus.CONFIRMED)
+            conf_bonus = base_conf_bonus + (extra_granular * (5 / len(items))) 
+            
+            score += conf_bonus
+            explanations.append(f"AI classification quality: +{conf_bonus:.2f}")
+
+        # --- 5. Tie-breaker (Internal Ranking Only) ---
+        # Tiny offset to break ties in ranking without affecting the visible integer score
+        score += sum(i.id for i in items) / 1000000.0
+
         
+        # Log decision metrics... (existing logic)
+
         for item in items:
             if item.classification_status == ClassificationStatus.LOW_CONFIDENCE:
                 score += self.LOW_CONFIDENCE_PENALTY
@@ -171,22 +278,21 @@ class RecommendationEngine:
                 explanations.append(f"Unknown item penalty: {self.UNKNOWN_CATEGORY_PENALTY}")
         
         from app.services.decision_engine import DecisionEngine
-        summary = DecisionEngine.get_recommendation_explanation(len(items), weather, occasion.value)
-        
         DecisionEngine.log_decision_metrics(
             action_type="recommendation",
             status="SUCCESS",
             metadata={
                 "items_count": len(items),
                 "weather": weather,
-                "score": int(score)
+                "score": int(score),
+                "breakdown": explanations
             }
         )
 
         return {
             "items": items,
             "score": int(score),
-            "reason": summary # Replace raw explanation trail with refined XAI summary
+            "explanations": explanations  # Reason will be generated later for top K
         }
 
 recommendation_engine = RecommendationEngine()

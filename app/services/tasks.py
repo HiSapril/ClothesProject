@@ -1,24 +1,35 @@
 import os
 import io
+import certifi
 from PIL import Image
 import logging
+
+# Force correct SSL certificate path to avoid system-level conflicts (e.g. PostgreSQL)
+os.environ['SSL_CERT_FILE'] = certifi.where()
+os.environ['REQUESTS_CA_BUNDLE'] = certifi.where()
+
 from celery import shared_task
 from sqlalchemy.orm import Session
 from app.db.database import SessionLocal
 from app.db import models
-from app.services.ai_service import analyze_image
+from app.services.ai_service import analyze_image, enhance_classification_with_llm
 from app.domain.fashion_taxonomy import map_imagenet_label, ClassificationStatus
 from celery.exceptions import SoftTimeLimitExceeded
 
 logger = logging.getLogger("app")
 
-@shared_task(name="process_clothing_ai", bind=True)
-def process_clothing_ai(self, item_id: int, image_hex: str, request_id: str = None):
-    db = SessionLocal()
+def process_clothing_ai(item_id: int, image_hex: str, request_id: str = None, db: Session = None):
+    # Use provided session or create a new one
+    local_session = False
+    if db is None:
+        db = SessionLocal()
+        local_session = True
+        
     item = None
     try:
         logger.info(f"Processing AI for item {item_id}")
         item = db.query(models.ClothingItem).filter(models.ClothingItem.id == item_id).first()
+        
         if not item:
             logger.error(f"Item {item_id} not found in database")
             return {"status": "FAILED", "message": "Item not found"}
@@ -45,6 +56,7 @@ def process_clothing_ai(self, item_id: int, image_hex: str, request_id: str = No
                 item.processed_image_path = existing.processed_image_path
                 item.main_color_hex = existing.main_color_hex
                 item.type = existing.type
+                item.occasion = existing.occasion
                 item.status = "COMPLETED"
                 db.commit()
                 return {"status": "COMPLETED", "item_id": item_id, "deduplicated": True}
@@ -56,7 +68,13 @@ def process_clothing_ai(self, item_id: int, image_hex: str, request_id: str = No
         
         raw_label = ai_results['category_raw']
         confidence = ai_results['confidence']
-        category = map_imagenet_label(raw_label)
+        
+        # Parse Gemini direct enum output if applicable
+        from app.domain.fashion_taxonomy import FashionCategory
+        try:
+            category = FashionCategory(raw_label.upper())
+        except ValueError:
+            category = map_imagenet_label(raw_label)
         
         # 3. Decision Layer
         from app.services.decision_engine import DecisionEngine
@@ -74,9 +92,12 @@ def process_clothing_ai(self, item_id: int, image_hex: str, request_id: str = No
             }
         )
 
-        # 4. Update Database
+        # 4. Enhance with DeepSeek LLM
+        deepseek_enhancement = enhance_classification_with_llm(raw_label, ai_results['color_hex'])
+        
+        # 5. Update Database
         item.category = category
-        item.category_label = raw_label
+        item.category_label = deepseek_enhancement.get('style_tag', raw_label)
         item.confidence_score = confidence
         item.classification_status = decision["status"]
         item.failure_code = decision["failure_code"]
@@ -84,6 +105,15 @@ def process_clothing_ai(self, item_id: int, image_hex: str, request_id: str = No
         item.raw_model_output = ai_results['raw_output']
         item.processed_image_path = ai_results['processed_image_path']
         item.main_color_hex = ai_results['color_hex']
+        
+        # Map occasion string to Enum safely
+        from app.db.models import OccasionEnum
+        occ_str = deepseek_enhancement.get('occasion', 'casual').lower()
+        try:
+            item.occasion = OccasionEnum(occ_str)
+        except ValueError:
+            item.occasion = OccasionEnum.CASUAL
+            
         item.status = "COMPLETED"
         
         from app.db.models import ClothingTypeEnum
@@ -113,4 +143,5 @@ def process_clothing_ai(self, item_id: int, image_hex: str, request_id: str = No
             db.commit()
         return {"status": "FAILED", "message": str(e)}
     finally:
-        db.close()
+        if local_session and db:
+            db.close()
