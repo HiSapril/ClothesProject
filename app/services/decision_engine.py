@@ -64,19 +64,25 @@ class DecisionEngine:
         
         # Base deterministic explanation (Fallback)
         event_ctx = f" sự kiện '{event_name}'" if event_name else ""
-        base = f"[Độ phù hợp: {suitability_pct}/100] Dựa trên tiết trời {condition} ({temp}°C) và bối cảnh {occasion}{event_ctx}: "
-        if len(items) >= 3:
-            action = f"Hệ thống đã phối {item_names[0]} với {item_names[1]} và {item_names[2]}."
+        base = f"🎯 Độ phù hợp: {suitability_pct}/100 | ✨ Phân tích: "
+        
+        condition_map = {
+            "Nắng": "trời nắng ráo",
+            "Mưa": "trời có mưa",
+            "Mây": "trời nhiều mây",
+            "Tuyết": "trời có tuyết"
+        }
+        weather_desc = condition_map.get(condition, f"tiết trời {condition}")
+        
+        if suitability_pct >= 80:
+            status_desc = "rất lý tưởng"
+        elif suitability_pct >= 60:
+            status_desc = "khá ổn"
         else:
-            action = f"Hệ thống gợi ý lẻ {', '.join(item_names)} vì tủ đồ chưa đủ bộ."
+            status_desc = "chưa thực sự tối ưu"
 
-        justification = ""
-        if breakdown:
-            core_reasons = [b for b in breakdown if "+" in b or "-" in b]
-            if core_reasons:
-                justification = " Lý do: " + "; ".join(core_reasons[:2])
-                
-        fallback_text = f"{base}{action}{justification}"
+        action = f"Sự kết hợp giữa {', '.join(item_names)} {status_desc} cho {weather_desc} ({temp}°C) và bối cảnh {occasion}{event_ctx}."
+        fallback_text = f"{base}{action}"
 
         # Attempt to use DeepSeek LLM
         from app.core.config import settings
@@ -95,32 +101,36 @@ class DecisionEngine:
                 "X-Title": "OutfitAI"
             }
             
-            event_line = f"Tôi sẽ tham gia sự kiện '{event_name}'.\n" if event_name else ""
+            event_line = f"Sự kiện: '{event_name}'.\n" if event_name else ""
             prompt = f"Bối cảnh: {occasion}. Thời tiết: {condition}, {temp}°C.\n" \
                      f"{event_line}" \
-                     f"Tôi tính mặc bộ đồ gồm: {', '.join(item_names)}.\n" \
-                     f"Thuật toán AI đánh giá bộ đồ này đạt {suitability_pct}/100 điểm phù hợp.\n" \
-                     f"Hãy đóng vai Stylist cá nhân AI 10 năm kinh nghiệm.\n" \
-                     f"Viết 2-3 câu bằng tiếng Việt để: (1) Giải thích vì sao bộ đồ này hợp với thời tiết và bối cảnh{' và sự kiện' if event_name else ''}. (2) Đề xuất thêm 1 phụ kiện nếu muốn. Không dùng ngoặc kép."
+                     f"Trang phục: {', '.join(item_names)}.\n" \
+                     f"Điểm phù hợp: {suitability_pct}/100.\n" \
+                     f"Hãy đóng vai Stylist AI giàu kinh nghiệm. Hãy viết 2-3 câu tiếng Việt để:\n" \
+                     f"1. Giải thích lý do tại sao bộ đồ đạt số điểm {suitability_pct}/100 (Phân tích ưu/nhược điểm cụ thể về màu sắc, thời tiết hoặc bối cảnh).\n" \
+                     f"2. Nêu lý do hệ thống chọn sự kết hợp này.\n" \
+                     f"3. Nếu điểm thấp, hãy chỉ rõ điểm chưa ổn để người dùng rút kinh nghiệm.\n" \
+                     f"Lưu ý: Không dùng ngoặc kép, trả lời trực diện, súc tích."
             
             payload = {
                 "model": "deepseek/deepseek-chat",
                 "messages": [
-                    {"role": "system", "content": "You are an expert Vietnamese personal stylist AI for an academic research project. Explain outfit recommendations in 2-3 friendly Vietnamese sentences, referencing weather, occasion, and event context if provided."},
+                    {"role": "system", "content": "You are an expert personal stylist AI. Provide a deep, analytical explanation for an outfit's suitability score (0-100). Focus on pros/cons, weather logic, and occasion alignment. Use friendly but professional Vietnamese."},
                     {"role": "user", "content": prompt}
                 ],
-                "temperature": 0.6,
-                "max_tokens": 200
+                "temperature": 0.5,
+                "max_tokens": 400
             }
             
-            # Use a short timeout so the UI doesn't hang if DeepSeek is slow/down (max 3 seconds)
-            response = requests.post(url, headers=headers, json=payload, timeout=3.0)
+            # Use a slightly longer timeout (max 5 seconds) to ensure response
+            response = requests.post(url, headers=headers, json=payload, timeout=5.0)
             
             if response.status_code == 200:
                 data = response.json()
                 if "choices" in data and len(data["choices"]) > 0:
                     ai_text = data["choices"][0]["message"]["content"].strip()
                     ai_text = ai_text.replace('"', '').replace("'", "")
+                    # Ensure the response includes the required prefix for UI consistency
                     return f"🎯 Độ phù hợp: {suitability_pct}/100 | ✨ Stylist AI: {ai_text}"
             else:
                 logger.warning(f"DeepSeek API returned {response.status_code}: {response.text}")

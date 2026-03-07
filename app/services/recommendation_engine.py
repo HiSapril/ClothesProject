@@ -141,10 +141,10 @@ class RecommendationEngine:
             final_recs.append(c)
             used_item_ids.update(current_item_ids) # Mark these items as consumed
             
-            # Change: Pick 4 top, then stop to pick 1 wildcard later
-            if len(final_recs) >= 4: break
+            # Change: Pick 3 top, then stop to pick 2 wildcards later
+            if len(final_recs) >= 3: break
 
-        # 4. Wildcard Selection: Find the LOWEST scoring unique-item outfit for baseline comparison
+        # 4. Wildcard Selection: Find the 2 LOWEST scoring unique-item outfits for baseline comparison
         if len(final_recs) < 5:
             # Sort candidates by score ASCENDING this time
             candidates_asc = sorted(candidates, key=lambda x: x["score"])
@@ -158,9 +158,10 @@ class RecommendationEngine:
                         if validation["status"] == "REJECTED": continue
                     
                     c["decision_status"] = "CONFIRMED"
-                    c["reason"] = "WILDCARD: Low Suitability comparison"
                     final_recs.append(c)
-                    break # Just 1 wildcard
+                    used_item_ids.update(current_item_ids)
+                    
+                    if len(final_recs) >= 5: break
 
 
         # Only generate LLM explanations for the top selected outfits (massive speedup)
