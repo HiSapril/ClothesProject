@@ -1,6 +1,11 @@
 ﻿venv/
 .venv/
-__pyc# Datasets
+__pycache__/
+*.log
+.env
+scripts/verify_secret.py
+
+# Datasets
 datasets/raw/
 datasets/processed/
 !datasets/sample_labels.json
