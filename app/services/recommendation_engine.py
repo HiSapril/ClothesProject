@@ -85,16 +85,18 @@ class RecommendationEngine:
             shoes = inventory[FashionCategory.FOOTWEAR]
             
             if tops and bottoms and shoes:
+                potential_outerwear = inventory[FashionCategory.OUTERWEAR]
                 for top in tops:
                     for bottom in bottoms:
                         for shoe in shoes:
-                            items = [top, bottom, shoe]
-                            potential_outerwear = inventory[FashionCategory.OUTERWEAR]
-                            if temp < 18 and potential_outerwear:
+                            base_items = [top, bottom, shoe]
+                            # 1. Add base 3-item outfit
+                            candidates.append(self._evaluate_outfit(base_items, weather, occasion, user))
+                            
+                            # 2. Add optional 4-item outfits with each available outerwear
+                            if potential_outerwear:
                                 for outer in potential_outerwear:
-                                    candidates.append(self._evaluate_outfit(items + [outer], weather, occasion, user))
-                            else:
-                                candidates.append(self._evaluate_outfit(items, weather, occasion, user))
+                                    candidates.append(self._evaluate_outfit(base_items + [outer], weather, occasion, user))
             else:
                 # RELAXED: If full outfit not possible, suggest pairs or individuals
                 # Research: Academic users prefer knowing WHY they have few options
