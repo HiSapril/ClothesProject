@@ -12,6 +12,8 @@ from app.schemas import schemas
 
 router = APIRouter()
 logger = logging.getLogger("app")
+# Trigger uvicorn reload
+
 
 @router.post("/register", response_model=schemas.UserResponse)
 def register_user(

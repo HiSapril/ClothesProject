@@ -217,13 +217,13 @@
         </div>
 
         <div class="tabs">
-            <div class="tab active" onclick="switchTab('login')">Đăng nhập</div>
-            <div class="tab" onclick="switchTab('register')">Đăng ký</div>
+            <div class="tab active">Đăng nhập</div>
+            <div class="tab">Đăng ký</div>
         </div>
 
         <div id="error-msg"></div>
 
-        <form id="auth-form" onsubmit="handleAuth(event)">
+        <form id="auth-form">
             <div class="form-group" id="username-group">
                 <label>Tên đăng nhập</label>
                 <input type="text" id="username" placeholder="Nhập username" required>
@@ -244,7 +244,7 @@
 
         <div class="divider">HOẶC TIẾP TỤC VỚI</div>
 
-        <button onclick="loginWithGoogle()" class="btn-google">
+        <button class="btn-google">
             <ion-icon name="logo-google" style="color: #DB4437; font-size: 20px;"></ion-icon>
             Đăng nhập bằng Google
         </button>
@@ -303,7 +303,7 @@
                     window.location.href = '/';
                 }
             } catch (err) {
-                errorMsg.innerText = err.message;
+                errorMsg.innerText = err.message || "Đã xảy ra lỗi hệ thống. Vui lòng thử lại.";
                 errorMsg.style.display = 'block';
             }
         }
@@ -311,6 +311,7 @@
         function loginWithGoogle() {
             window.location.href = '/api/v1/calendar/login';
         }
+        window.loginWithGoogle = loginWithGoogle;
 
         // Attach event listeners properly after module loads
         document.querySelectorAll('.tab').forEach(tab => {
