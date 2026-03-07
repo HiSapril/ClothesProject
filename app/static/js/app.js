@@ -603,11 +603,16 @@ function setupListeners() {
     const eventForm = document.getElementById('eventForm');
     if (eventForm) {
         eventForm.onsubmit = async (e) => {
+            e.preventDefault();
+            const dateStr = document.getElementById('eventDate').value;
+            const timeStr = document.getElementById('eventTime').value;
+            const isoTime = new Date(`${dateStr}T${timeStr}:00`).toISOString();
+
             const data = {
                 summary: document.getElementById('eventSummary').value,
                 description: document.getElementById('eventDescription').value,
-                start_time: `${document.getElementById('eventDate').value}T${document.getElementById('eventTime').value}:00Z`,
-                end_time: `${document.getElementById('eventDate').value}T${document.getElementById('eventTime').value}:00Z`
+                start_time: isoTime,
+                end_time: isoTime
             };
 
             let res;
