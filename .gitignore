@@ -1,14 +1,44 @@
-﻿venv/
+﻿# Environment & Secrets
+venv/
 .venv/
-__pycache__/
-*.log
 .env
+.env.*
+!.env.example
+credentials.json
 scripts/verify_secret.py
 
-# Datasets
+# Logs & Error Reports
+*.log
+*log.txt
+error.txt
+npm-debug.log*
+temp_err.txt
+test_result.txt
+
+# Media & Database (Do not commit user data)
+uploads/
+processed_uploads/
+*.db
+*.sqlite3
+
+# Build & Cache
+__pycache__/
+*.pyc
+node_modules/
+dist/
+build/
+.cache/
+.pytest_cache/
+.DS_Store
+
+# AI Agents
+.cursor/
+.cline/
+.roo/
+.anthropic/
+
+# Datasets & Testing
 datasets/raw/
 datasets/processed/
 !datasets/sample_labels.json
 test_image.png
-test_result.txt
-credentials.json
