@@ -16,11 +16,11 @@ rembg[cpu]
 scikit-learn
 numpy
 Pillow
-
+google-auth-oauthlib
 python-jose[cryptography]==3.3.0
 bcrypt==3.2.0
 passlib[bcrypt]==1.7.4
-google-auth-oauthlib
+
 fastapi-limiter==0.1.6
 pytest==8.0.0
 pytest-asyncio==0.23.5
